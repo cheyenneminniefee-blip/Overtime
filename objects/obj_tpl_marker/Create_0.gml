@@ -1,0 +1,1 @@
+tag = "enemy";   // also: "loot", "entrance", "exit"

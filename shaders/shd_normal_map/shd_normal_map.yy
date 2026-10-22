@@ -1,0 +1,12 @@
+{
+  "$GMShader":"",
+  "%Name":"shd_normal_map",
+  "name":"shd_normal_map",
+  "parent":{
+    "name":"Overtime",
+    "path":"Overtime.yyp",
+  },
+  "resourceType":"GMShader",
+  "resourceVersion":"2.0",
+  "type":1,
+}

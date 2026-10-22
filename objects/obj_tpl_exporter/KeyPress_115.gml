@@ -1,0 +1,1 @@
+scr_tpl_export_all();
