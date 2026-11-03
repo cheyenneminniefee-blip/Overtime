@@ -33,7 +33,7 @@
   "origin":4,
   "parent":{
     "name":"enemy normals",
-    "path":"folders/enemy normals.yy",
+    "path":"folders/enemy animations/enemy normals.yy",
   },
   "preMultiplyAlpha":false,
   "resourceType":"GMSprite",

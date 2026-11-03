@@ -10,7 +10,7 @@
   "overriddenProperties":[],
   "parent":{
     "name":"enemy hitboxes",
-    "path":"folders/enemy hitboxes.yy",
+    "path":"folders/enemy animations/enemy hitboxes.yy",
   },
   "parentObjectId":null,
   "persistent":false,

@@ -41,7 +41,7 @@
   "origin":4,
   "parent":{
     "name":"enemy hitboxes",
-    "path":"folders/enemy hitboxes.yy",
+    "path":"folders/enemy animations/enemy hitboxes.yy",
   },
   "preMultiplyAlpha":false,
   "resourceType":"GMSprite",

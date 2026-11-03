@@ -33,7 +33,7 @@
   "origin":4,
   "parent":{
     "name":"player normals",
-    "path":"folders/player normals.yy",
+    "path":"folders/player animations/player normals.yy",
   },
   "preMultiplyAlpha":false,
   "resourceType":"GMSprite",

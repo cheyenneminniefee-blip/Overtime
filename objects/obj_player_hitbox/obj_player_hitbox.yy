@@ -10,7 +10,7 @@
   "overriddenProperties":[],
   "parent":{
     "name":"player hitboxes",
-    "path":"folders/player hitboxes.yy",
+    "path":"folders/player animations/player hitboxes.yy",
   },
   "parentObjectId":null,
   "persistent":false,
