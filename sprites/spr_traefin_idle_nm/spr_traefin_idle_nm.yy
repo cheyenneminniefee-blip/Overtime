@@ -47,8 +47,8 @@
   "nineSlice":null,
   "origin":4,
   "parent":{
-    "name":"group1",
-    "path":"folders/traefin sprites/group1.yy",
+    "name":"traefin normal maps",
+    "path":"folders/traefin sprites/traefin normal maps.yy",
   },
   "preMultiplyAlpha":false,
   "resourceType":"GMSprite",
