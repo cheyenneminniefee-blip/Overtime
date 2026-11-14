@@ -18,8 +18,9 @@ function scr_player_phase_slash() {
         phase_teleported = false;
     }
     else if (image_index >= 6) && (!phase_teleported) {
-        var teleport_distance = 192;
+        var teleport_distance = phase_slash_range;   // 160 px — 5 tiles (PRD 5.3)
         var step_check = 0;
+        var _travelled = 0;
         var phase_hits = [];   // Enemies already pierced during this dash
         var _px = x;           // Where the strike originated
 
@@ -34,9 +35,12 @@ function scr_player_phase_slash() {
             step_check += 1;
 
             // --- PIERCING STRIKE ---
-            // Damage every enemy the dash passes through. Phase Slash
-            // bypasses shields entirely (PRD), hence the _bypass flag.
+            // Damage every enemy the dash passes through, checked across the
+            // 48 px transit corridor (PRD 5.3). Phase Slash bypasses shields
+            // entirely (PRD), hence the _bypass flag.
             var _hit = instance_place(x, y, obj_enemy_parent);
+            if (_hit == noone) _hit = instance_place(x, y - 16, obj_enemy_parent);
+            if (_hit == noone) _hit = instance_place(x, y + 16, obj_enemy_parent);
             if (_hit != noone) {
                 var _already = false;
                 for (var i = 0; i < array_length(phase_hits); i++) {
@@ -52,6 +56,14 @@ function scr_player_phase_slash() {
                     }
                 }
             }
+            _travelled += 1;
+        }
+
+        // Cost/cooldown apply only on an actual teleport; a fully blocked path
+        // (0 px of travel) fizzles for free (PRD 5.3)
+        if (_travelled > 0) {
+            phase_slash_cooldown = phase_slash_cd_max;   // 2.0 s (PRD 5.3)
+            invuln_timer = max(invuln_timer, 12);        // 0.2 s transit i-frames (PRD 5.3)
         }
 
         phase_teleported = true;

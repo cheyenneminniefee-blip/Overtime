@@ -8,7 +8,7 @@ key_shoot = mouse_check_button_pressed(mb_left);
 key_phase = keyboard_check_pressed(ord("E"));
 key_freeze = keyboard_check_pressed(ord("Q"));
 key_attack = mouse_check_button_pressed(mb_left);
-key_dodge = keyboard_check_pressed(vk_control);
+key_dodge = keyboard_check_pressed(vk_shift);   // PRD 5.5: the Shift press fires the dodge; holding continues into sprint
 key_block = mouse_check_button(mb_right);          // Checks if holding right-click
 key_block_pressed = mouse_check_button_pressed(mb_right); // Checks the initial click
 
@@ -46,9 +46,10 @@ if (state != player_states.dodge) && (state != player_states.wall_hang) {
 // --- Ground Check And Jump Execution ---
 if (place_meeting(x, y + 1, obj_solid)) && (key_jump) && 
    (state != player_states.idle_attack_1) && (state != player_states.idle_attack_2) && (state != player_states.idle_attack_3) && 
-   (state != player_states.phase_slash) && (state != player_states.wall_hang) {
+   (state != player_states.phase_slash) && (state != player_states.wall_hang) && (state != player_states.dodge) {
     
     vspd = jump_spd;
+    hspd = clamp(hspd, -sprint_spd, sprint_spd);   // Takeoff clamp: a jump out of a burst is a sprint-jump, never a rocket (PRD 5.5)
     draw_xscale = 0.7;
     draw_yscale = 1.3;
     
@@ -132,6 +133,11 @@ if (place_meeting(x, y + vspd, obj_solid)) {
 }
 y = y + vspd;
 
+// Landing refreshes the air dodge (PRD 5.5)
+if (place_meeting(x, y + 1, obj_solid)) {
+    dodge_air_used = false;
+}
+
 // --- Airborne And Landing State Tracker ---
 if (state != player_states.idle_attack_1) && (state != player_states.idle_attack_2) && (state != player_states.idle_attack_3) && 
    (state != player_states.phase_slash)   && (state != player_states.walk_attack_1) && (state != player_states.walk_attack_2) &&
@@ -177,22 +183,47 @@ if (invuln_timer > 0) invuln_timer -= 1;
 if (hurt_timer > 0)   hurt_timer -= 1;
 if (parry_timer > 0)  parry_timer -= 1;
 if (flash_timer > 0)  flash_timer -= 1;   // flash is now global (see note)
+if (phase_slash_cooldown > 0) phase_slash_cooldown -= 1;
 
-// Dodge State Activation Trigger
+// After-image ghost lifetime (PRD 5.5)
+for (var _gi = array_length(dodge_ghosts) - 1; _gi >= 0; _gi--) {
+    dodge_ghosts[_gi].t += 1;
+    if (dodge_ghosts[_gi].t > ghost_life) array_delete(dodge_ghosts, _gi, 1);
+}
+
+// Dodge State Activation Trigger — fires on the press frame (PRD 5.5)
+// Usable from neutral states, guard, and sword recovery; in the air it is the
+// one-per-airtime air dodge. No stamina gate yet — that lands with 5.6.
 if (key_dodge) && (dodge_cooldown <= 0) {
-    // Only allow dodging out of neutral physical states
-    if (state == player_states.idle) || (state == player_states.walk) || (state == player_states.sprint) || (state == player_states.jump) {
-        state = player_states.dodge;
-        image_index = 0;
-        
-        // Start timers
-        dodge_timer = dodge_duration;
-        flash_timer = flash_duration;
-        
-        // Contextual Direction Snap: If holding a key, face that direction instantly
-        var input_move = key_right - key_left;
-        if (input_move != 0) {
-            facing_dir = sign(input_move);
+    var _dodge_ok_state = (state == player_states.idle) || (state == player_states.walk) || (state == player_states.sprint)
+        || (state == player_states.jump)
+        || (state == player_states.block)
+        || (state == player_states.idle_attack_1) || (state == player_states.idle_attack_2) || (state == player_states.idle_attack_3)
+        || (state == player_states.walk_attack_1) || (state == player_states.walk_attack_2)
+        || (state == player_states.up_attack)     || (state == player_states.down_attack)  || (state == player_states.air_attack);
+    if (_dodge_ok_state) {
+        var _on_ground = place_meeting(x, y + 1, obj_solid);
+        if (_on_ground || !dodge_air_used) {
+            state = player_states.dodge;
+            image_index = 0;
+
+            // Start timers
+            dodge_timer = dodge_duration;
+            flash_timer = flash_duration;
+            dodge_was_air = !_on_ground;
+            if (!_on_ground) dodge_air_used = true;
+
+            // Contextual Direction Snap: If holding a key, face that direction instantly
+            var input_move = key_right - key_left;
+            if (input_move != 0) {
+                facing_dir = sign(input_move);
+            }
+
+            // Cancelling out of a sword swing cleans up its hitbox
+            if (attack_hitbox != noone && instance_exists(attack_hitbox)) {
+                instance_destroy(attack_hitbox);
+                attack_hitbox = noone;
+            }
         }
     }
 }
@@ -228,7 +259,9 @@ if (key_attack) {
         
         // 1. HIGH PRIORITY SPRINT CHECK: Phase Slash (Works Grounded AND Airborne!)
         // If holding sprint and moving horizontally, execute Phase Slash regardless of altitude
-        if (hspd != 0 && key_sprint) {
+        if (hspd != 0 && key_sprint && phase_slash_cooldown <= 0) {
+            var _aim_move = key_right - key_left;
+            if (_aim_move != 0) facing_dir = sign(_aim_move);
             state = player_states.phase_slash;
             image_index = 0;
             attack_buffered = false; 
@@ -272,7 +305,9 @@ if (key_attack) {
                 }
             }
             // 1. Check if sprinting to execute Phase Slash
-            else if (hspd != 0 && key_sprint && state!=player_states.wall_hang) {
+            else if (hspd != 0 && key_sprint && state!=player_states.wall_hang && phase_slash_cooldown <= 0) {
+                var _aim_move = key_right - key_left;
+                if (_aim_move != 0) facing_dir = sign(_aim_move);
                 state = player_states.phase_slash;
                 image_index = 0;
                 attack_buffered = false; 

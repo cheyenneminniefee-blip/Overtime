@@ -1,3 +1,12 @@
+// --- 0. DODGE AFTER-IMAGE GHOSTS (draw-only, no collision or logic — PRD 5.5) ---
+for (var _i = 0; _i < array_length(dodge_ghosts); _i++) {
+    var _g = dodge_ghosts[_i];
+    var _ga = 0.5 - (_g.t / ghost_life) * 0.35;   // 0.5 -> 0.15 over the ghost's life
+    if (sprite_exists(_g.spr)) {
+        draw_sprite_ext(_g.spr, _g.ind, _g.x, _g.y, _g.xs, _g.ys, 0, c_white, _ga);
+    }
+}
+
 // --- 1. FIND THE CLOSEST LIGHT ---
 var active_light = instance_nearest(x, y, obj_light);
 var light_x = x;
