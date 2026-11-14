@@ -1,8 +1,4 @@
-/// obj_hud — Draw GUI: stamina (amber, top) and energy (cyan) meters, bottom-left
-if (!instance_exists(obj_player)) exit;
-
-var _p = obj_player;
-
+/// obj_player — Draw GUI: stamina (amber, top) and energy (cyan) meters, bottom-left
 var _gw = display_get_gui_width();
 var _gh = display_get_gui_height();
 var _margin = 16;
@@ -23,10 +19,10 @@ var _sy = _ey - _gap - _bh;
 
 // --- STAMINA (amber) ---
 draw_sprite(spr_stamina_border, 0, _margin + _bxoff, _sy + _byoff);
-var _sratio = _p.stamina / _p.stamina_max;
+var _sratio = stamina / stamina_max;
 draw_sprite_ext(spr_stamina, 0, _margin, _sy, _sratio * _inner_w, _inner_h / _fill_h, 0, c_white, 1);
 
 // --- ENERGY (cyan) ---
 draw_sprite(spr_energy_border, 0, _margin + _bxoff, _ey + _byoff);
-var _eratio = _p.energy / _p.energy_max;
+var _eratio = energy / energy_max;
 draw_sprite_ext(spr_energy, 0, _margin, _ey, _eratio * _inner_w, _inner_h / _fill_h, 0, c_white, 1);
