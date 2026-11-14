@@ -63,6 +63,7 @@ function scr_player_phase_slash() {
         // (0 px of travel) fizzles for free (PRD 5.3)
         if (_travelled > 0) {
             phase_slash_cooldown = phase_slash_cd_max;   // 2.0 s (PRD 5.3)
+            energy = max(0, energy - 40);                // 40 energy, real teleports only (PRD 5.3, 5.6)
             invuln_timer = max(invuln_timer, 12);        // 0.2 s transit i-frames (PRD 5.3)
         }
 

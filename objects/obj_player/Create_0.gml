@@ -1,3 +1,12 @@
+// --- Resources: Stamina & Energy (PRD 5.6) ---
+stamina = 100;
+stamina_max = 100;
+stamina_regen_delay = 0;         // 0.5 s (30 f) after the last sprint / dodge / block
+stamina_regen_delay_max = 30;
+sprint_needs_reengage = false;   // anti-flutter: after emptying, sprint needs 30 to re-engage
+energy = 100;
+energy_max = 100;
+
 // Character Physics Variables
 hspd = 0;
 vspd = 0;

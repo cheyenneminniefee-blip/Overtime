@@ -23,7 +23,9 @@ if (_p.state == player_states.block) {
         exit;
     }
 
-    // Regular block: hit fully negated (the parry's payoff is the stun)
+    // Regular block: hit fully negated; blocking a hit drains 10 stamina (PRD 5.6)
+    _p.stamina = max(0, _p.stamina - 10);
+    _p.stamina_regen_delay = _p.stamina_regen_delay_max;
     exit;
 }
 

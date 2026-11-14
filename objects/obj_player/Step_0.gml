@@ -31,10 +31,15 @@ if (state == player_states.idle_attack_1) || (state == player_states.idle_attack
     move = 0;
 }
 
+// Sprint availability (PRD 5.6): engaging needs 15 stamina (30 after emptying —
+// anti-flutter); an ongoing sprint sustains until stamina reaches 0.
+var _sprint_min = (sprint_needs_reengage) ? 30 : 15;
+var _sprint_ok = (state == player_states.sprint) ? (stamina > 0) : (stamina >= _sprint_min);
+
 // Only apply standard walking/sprinting and gravity if NOT actively dodging or wall-hanging!
 if (state != player_states.dodge) && (state != player_states.wall_hang) {
     if (wall_jump_timer <= 0 && hurt_timer <= 0) { // FIX: added hurt lockout
-        if (key_sprint) && (move != 0) {
+        if (key_sprint) && (move != 0) && (_sprint_ok) {
             hspd = move * sprint_spd;
         } else {
             hspd = move * walk_spd;
@@ -67,9 +72,11 @@ if (global.time_frozen) {
         global.time_frozen = false;
         time_freeze_cd_timer = 1800;
     }
-} else if (key_freeze) && (time_freeze_cd_timer <= 0) {
+} else if (key_freeze) && (time_freeze_cd_timer <= 0) && (energy >= energy_max) {
+    // Full-meter gate: activation drains the energy meter to 0 (PRD 5.2, 5.6)
     global.time_frozen = true;
     time_freeze_timer = 300;
+    energy = 0;
 }
 
 // Overtime Core State Machine
@@ -157,7 +164,7 @@ if (state != player_states.idle_attack_1) && (state != player_states.idle_attack
             state = player_states.jump;
         } else {
             if (hspd != 0) {
-                if (key_sprint) {
+                if (key_sprint) && (_sprint_ok) {
                     state = player_states.sprint;
                 } else {
                     state = player_states.walk;
@@ -185,6 +192,30 @@ if (parry_timer > 0)  parry_timer -= 1;
 if (flash_timer > 0)  flash_timer -= 1;   // flash is now global (see note)
 if (phase_slash_cooldown > 0) phase_slash_cooldown -= 1;
 
+// --- Resource upkeep (PRD 5.6) ---
+// Sprint drains 20/s and sustains until stamina reaches 0
+if (state == player_states.sprint) {
+    stamina = max(0, stamina - 20 / 60);
+    stamina_regen_delay = stamina_regen_delay_max;
+    if (stamina <= 0) sprint_needs_reengage = true;
+}
+// Holding guard counts as blocking — pauses stamina regen
+if (state == player_states.block) {
+    stamina_regen_delay = stamina_regen_delay_max;
+}
+// Anti-flutter clears once 30 stamina is banked again
+if (sprint_needs_reengage) && (stamina >= 30) {
+    sprint_needs_reengage = false;
+}
+// Stamina regen: 30/s after 0.5 s without sprinting, dodging, or blocking
+if (stamina_regen_delay > 0) {
+    stamina_regen_delay -= 1;
+} else if (stamina < stamina_max) {
+    stamina = min(stamina_max, stamina + 30 / 60);
+}
+// Energy regen: 10/s, always
+energy = min(energy_max, energy + 10 / 60);
+
 // After-image ghost lifetime (PRD 5.5)
 for (var _gi = array_length(dodge_ghosts) - 1; _gi >= 0; _gi--) {
     dodge_ghosts[_gi].t += 1;
@@ -193,8 +224,9 @@ for (var _gi = array_length(dodge_ghosts) - 1; _gi >= 0; _gi--) {
 
 // Dodge State Activation Trigger — fires on the press frame (PRD 5.5)
 // Usable from neutral states, guard, and sword recovery; in the air it is the
-// one-per-airtime air dodge. No stamina gate yet — that lands with 5.6.
-if (key_dodge) && (dodge_cooldown <= 0) {
+// one-per-airtime air dodge. Costs 20 stamina, not fired below 20 (PRD 5.6).
+// If unavailable, a held Shift press falls back to a plain sprint above.
+if (key_dodge) && (dodge_cooldown <= 0) && (stamina >= 20) {
     var _dodge_ok_state = (state == player_states.idle) || (state == player_states.walk) || (state == player_states.sprint)
         || (state == player_states.jump)
         || (state == player_states.block)
@@ -207,9 +239,11 @@ if (key_dodge) && (dodge_cooldown <= 0) {
             state = player_states.dodge;
             image_index = 0;
 
-            // Start timers
+            // Start timers and pay the dodge cost (PRD 5.6)
             dodge_timer = dodge_duration;
             flash_timer = flash_duration;
+            stamina -= 20;
+            stamina_regen_delay = stamina_regen_delay_max;
             dodge_was_air = !_on_ground;
             if (!_on_ground) dodge_air_used = true;
 
@@ -259,7 +293,7 @@ if (key_attack) {
         
         // 1. HIGH PRIORITY SPRINT CHECK: Phase Slash (Works Grounded AND Airborne!)
         // If holding sprint and moving horizontally, execute Phase Slash regardless of altitude
-        if (hspd != 0 && key_sprint && phase_slash_cooldown <= 0) {
+        if (hspd != 0 && key_sprint && phase_slash_cooldown <= 0 && energy >= 40) {
             var _aim_move = key_right - key_left;
             if (_aim_move != 0) facing_dir = sign(_aim_move);
             state = player_states.phase_slash;
@@ -305,7 +339,7 @@ if (key_attack) {
                 }
             }
             // 1. Check if sprinting to execute Phase Slash
-            else if (hspd != 0 && key_sprint && state!=player_states.wall_hang && phase_slash_cooldown <= 0) {
+            else if (hspd != 0 && key_sprint && state!=player_states.wall_hang && phase_slash_cooldown <= 0 && energy >= 40) {
                 var _aim_move = key_right - key_left;
                 if (_aim_move != 0) facing_dir = sign(_aim_move);
                 state = player_states.phase_slash;

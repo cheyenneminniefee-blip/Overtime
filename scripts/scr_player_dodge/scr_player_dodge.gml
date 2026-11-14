@@ -47,8 +47,9 @@ function scr_player_dodge() {
             hspd = clamp(hspd, -sprint_spd, sprint_spd);
             state = player_states.jump;
         }
-        else if (key_sprint) && (move != 0) {
-            // Holding through the burst continues into sprint (PRD 5.5)
+        else if (key_sprint) && (move != 0) && (stamina >= 15) {
+            // Holding through the burst continues into sprint — only with 15+
+            // stamina remaining; fewer than 15 leaves a walk (PRD 5.5, 5.6)
             hspd = move * sprint_spd;
             state = player_states.sprint;
         }
