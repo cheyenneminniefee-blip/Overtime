@@ -27,7 +27,10 @@
   "resourceType":"GMObject",
   "resourceVersion":"2.0",
   "solid":false,
-  "spriteId":null,
+  "spriteId":{
+    "name":"spr_ion_bolt",
+    "path":"sprites/spr_ion_bolt/spr_ion_bolt.yy",
+  },
   "spriteMaskId":null,
   "visible":true,
 }
