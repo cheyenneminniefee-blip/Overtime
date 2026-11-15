@@ -1,5 +1,8 @@
 var _p = other;
 
+// Time Freeze (PRD 5.2): frozen hostiles cannot hurt the player at all
+if (global.time_frozen) exit;
+
 // Mercy i-frames & active dodge frames: nothing happens at all
 if (_p.invuln_timer > 0) exit;
 if (_p.state == player_states.dodge && _p.dodge_timer > 0) exit;

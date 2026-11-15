@@ -1,5 +1,12 @@
 // --- SHARED ENEMY STEP ---
 
+// Time Freeze gate (PRD 5.2, 11.2): frozen hostiles do nothing — no AI, no
+// physics, no animation advance. The time-domain manager owns the state.
+if (global.time_frozen) {
+    image_speed = 0;
+    exit;
+}
+
 // Decrement action timers
 if (attack_cooldown > 0)     attack_cooldown -= 1;
 if (stun_immunity_timer > 0) stun_immunity_timer -= 1;   // NEW

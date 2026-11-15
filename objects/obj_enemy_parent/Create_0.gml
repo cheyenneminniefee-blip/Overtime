@@ -49,6 +49,12 @@ was_airborne = false;
 // --- Hitbox Instance Variables ---
 attack_hitbox = noone;
 
+// --- Time Freeze (PRD 11.2) ---
+// Captured by the time-domain manager on freeze; instances born mid-freeze
+// spawn pre-frozen so they never animate before their first unfreeze.
+mem_image_speed = image_speed;
+if (global.time_frozen) image_speed = 0;
+
 // --- Legs Animation Controllers ---
 legs_sprite_index = spr_enemy_legs_walk;
 legs_image_index = 0;

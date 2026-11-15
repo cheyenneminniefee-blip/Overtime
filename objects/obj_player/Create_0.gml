@@ -24,9 +24,6 @@ phase_slash_cooldown = 0;      // 2.0 s between Phase Slashes, charged only on a
 phase_slash_cd_max = 120;
 phase_slash_range = 160;       // 5 tiles (PRD 5.3)
 phase_teleported = false;
-time_freeze_timer = 0;
-time_freeze_cd_timer = 0;
-global.time_frozen = false;
 
 // State Machine Initialization
 enum player_states {

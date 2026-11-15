@@ -62,22 +62,8 @@ if (place_meeting(x, y + 1, obj_solid)) && (key_jump) &&
     // but their horizontal velocity (hspd) will remain high because key_sprint is still held!
 }
 
-// Time Freeze State Management
-if (time_freeze_cd_timer > 0) {
-    time_freeze_cd_timer -= 1;
-}
-if (global.time_frozen) {
-    time_freeze_timer -= 1;
-    if (time_freeze_timer <= 0) {
-        global.time_frozen = false;
-        time_freeze_cd_timer = 1800;
-    }
-} else if (key_freeze) && (time_freeze_cd_timer <= 0) && (energy >= energy_max) {
-    // Full-meter gate: activation drains the energy meter to 0 (PRD 5.2, 5.6)
-    global.time_frozen = true;
-    time_freeze_timer = 300;
-    energy = 0;
-}
+// Time Freeze: the time-domain manager owns duration, cooldown, and state
+if (key_freeze) scr_time_freeze_request();
 
 // Overtime Core State Machine
 if (hp <= 0) && (!is_overtime) {
