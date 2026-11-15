@@ -1,8 +1,8 @@
 /// obj_player — Draw GUI: stamina (amber, top) and energy (cyan) meters, bottom-left
 var _gh = display_get_gui_height();
 var _margin = 16;
-var _gap = 6;
-var _scale = 5;
+var _gap = 20;
+var _scale =3;
 
 // Border geometry: the border's origin sits on its inner fill area's top-left,
 // so drawing both sprites at the same anchor point aligns them (PRD HUD setup)
