@@ -35,3 +35,9 @@
 #macro CHUNK_PITCH_H (CHUNK_H + GUTTER)               // 24 tiles
 #macro CHUNK_PITCH_W_PX (CHUNK_PITCH_W * TILE_SIZE)   // 672
 #macro CHUNK_PITCH_H_PX (CHUNK_PITCH_H * TILE_SIZE)
+
+// Time Freeze (PRD 5.2) — 5 s freeze, 30 s cooldown starting at activation.
+// FROZEN_DAMAGE_MULT: frozen enemies take half damage (fractions kept).
+#macro FREEZE_DURATION 300
+#macro FREEZE_COOLDOWN 1800
+#macro FROZEN_DAMAGE_MULT 0.5

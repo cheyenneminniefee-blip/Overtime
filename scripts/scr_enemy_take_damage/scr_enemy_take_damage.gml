@@ -4,6 +4,17 @@
 // _bypass_shield — true for Phase Slash / grenades (PRD: both ignore the shield)
 function scr_enemy_take_damage(_amount, _from_x, _bypass_shield) {
 
+    // --- 0. TIME FREEZE (PRD 5.2) ---
+    // Frozen enemies take half damage from every source (fractions kept) and
+    // do not flinch: no flash, no squash, no poise damage, no stun. They still
+    // die — the death block below resolves fully while frozen (kill credit,
+    // +5 s Overtime, +15 energy, destroy).
+    var _frozen = global.time_frozen;
+    if (_frozen) {
+        _amount *= FROZEN_DAMAGE_MULT;
+        _bypass_shield = true;   // a frozen enemy cannot hold its shield up
+    }
+
     // --- 1. SHIELD CHECK (shield enemy only) ---
     // The shield absorbs 100% of frontal damage while raised.
     // It's raised whenever the enemy isn't attacking and isn't stunned.
@@ -19,9 +30,11 @@ function scr_enemy_take_damage(_amount, _from_x, _bypass_shield) {
 
     // --- 2. APPLY DAMAGE ---
     hp -= _amount;
-    flash_timer = flash_duration;
-    draw_xscale = 1.25;   // quick hurt squash (existing lerp normalizes it)
-    draw_yscale = 0.8;
+    if (!_frozen) {
+        flash_timer = flash_duration;
+        draw_xscale = 1.25;   // quick hurt squash (existing lerp normalizes it)
+        draw_yscale = 0.8;
+    }
 
     // --- 3. DEATH ---
     if (hp <= 0) {
@@ -36,6 +49,9 @@ function scr_enemy_take_damage(_amount, _from_x, _bypass_shield) {
         instance_destroy();
         exit;
     }
+
+    // A frozen enemy does not change state: no ambush or poise stun (PRD 5.2)
+    if (_frozen) exit;
 
     // --- 4. AMBUSH STUN ---
     // Damaged before they ever noticed the player = instant stun
