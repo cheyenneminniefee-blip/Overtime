@@ -77,6 +77,7 @@
     {"id":{"name":"scr_gen_spawn_clear","path":"scripts/scr_gen_spawn_clear/scr_gen_spawn_clear.yy",},},
     {"id":{"name":"scr_grenade_enemy_attack","path":"scripts/scr_grenade_enemy_attack/scr_grenade_enemy_attack.yy",},},
     {"id":{"name":"scr_grenade_enemy_walk","path":"scripts/scr_grenade_enemy_walk/scr_grenade_enemy_walk.yy",},},
+    {"id":{"name":"scr_grenade_explode","path":"scripts/scr_grenade_explode/scr_grenade_explode.yy",},},
     {"id":{"name":"scr_level_generate","path":"scripts/scr_level_generate/scr_level_generate.yy",},},
     {"id":{"name":"scr_melee_enemy_attack","path":"scripts/scr_melee_enemy_attack/scr_melee_enemy_attack.yy",},},
     {"id":{"name":"scr_melee_enemy_run","path":"scripts/scr_melee_enemy_run/scr_melee_enemy_run.yy",},},
