@@ -16,6 +16,12 @@ enum TIME {
 global.time_frozen = false;
 global.time_state = TIME.RUN;
 
+// Grenade chain caps (PRD 6.7)
+global.detonations_frame = 0;
+global.detonation_chain_count = 0;
+global.last_detonate_us = 0;
+global.detonation_chain_start_us = 0;
+
 function scr_time_state() {
     return global.time_state;
 }

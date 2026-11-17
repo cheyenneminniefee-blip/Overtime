@@ -7,6 +7,7 @@ key_fire_down = keyboard_check(ord("S")) || keyboard_check(vk_down);
 key_shoot = mouse_check_button_pressed(mb_left);
 key_phase = keyboard_check_pressed(ord("E"));
 key_freeze = keyboard_check_pressed(ord("Q"));
+key_grenade = keyboard_check_pressed(ord("G"));   // PRD 4.3: Photon Grenade
 key_attack = mouse_check_button_pressed(mb_left);
 key_dodge = keyboard_check_pressed(vk_shift);   // PRD 5.5: the Shift press fires the dodge; holding continues into sprint
 key_block = mouse_check_button(mb_right);          // Checks if holding right-click
@@ -64,6 +65,9 @@ if (place_meeting(x, y + 1, obj_solid)) && (key_jump) &&
 
 // Time Freeze: the time-domain manager owns duration, cooldown, and state
 if (key_freeze) scr_time_freeze_request();
+
+// Photon Grenade: instant throw, a free action from any state (PRD 5.7)
+if (key_grenade) scr_player_throw_grenade();
 
 // Overtime Core State Machine
 if (hp <= 0) && (!is_overtime) {

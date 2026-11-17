@@ -30,3 +30,13 @@ draw_sprite_ext(spr_stamina_border, 0, _margin, _sy, _scale, _scale, 0, c_white,
 var _eratio = energy / energy_max;
 draw_sprite_ext(spr_energy, 0, _margin, _ey, _eratio * _inner_w * _scale, (_inner_h / _fill_h) * _scale, 0, c_white, 1);
 draw_sprite_ext(spr_energy_border, 0, _margin, _ey, _scale, _scale, 0, c_white, 1);
+
+// --- GRENADE PIPS (PRD 12.1: bottom-left, under stamina) ---
+// Drawn in the gap between the stamina and energy bars, centered vertically
+if (has_grenades) {
+    var _pip_y = _sy + _vis_h + 10;   // midpoint of the 20 px gap
+    for (var _i = 0; _i < grenades_max; _i++) {
+        var _pip_alpha = (_i < grenades) ? 1 : 0.25;
+        draw_sprite_ext(spr_grenade, 0, _margin + 8 + _i * 20, _pip_y, 2, 2, 0, c_white, _pip_alpha);
+    }
+}

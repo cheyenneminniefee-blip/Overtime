@@ -7,6 +7,11 @@ sprint_needs_reengage = false;   // anti-flutter: after emptying, sprint needs 3
 energy = 100;
 energy_max = 100;
 
+// --- Photon Grenades (PRD 5.7) ---
+grenades = 3;
+grenades_max = 3;
+has_grenades = true;   // Debug-on: the PRD unlock lands at the L2 exit (M1c)
+
 // Character Physics Variables
 hspd = 0;
 vspd = 0;
