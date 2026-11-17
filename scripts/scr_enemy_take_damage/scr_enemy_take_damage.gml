@@ -46,6 +46,15 @@ function scr_enemy_take_damage(_amount, _from_x, _bypass_shield) {
             // PRD 5.6: kills bank +15 energy (also during Overtime)
             obj_player.energy = min(obj_player.energy_max, obj_player.energy + 15);
         }
+
+        // Corpse: plays the death animation once, then holds its last frame
+        // (death FX resolve immediately, even while frozen — PRD 5.2)
+        var _corpse = instance_create_layer(x, y, layer, obj_enemy_death);
+        _corpse.facing_dir = facing_dir;
+        _corpse.draw_xscale = draw_xscale;
+        _corpse.draw_yscale = draw_yscale;
+        _corpse.overlay_sprite = death_overlay;
+
         instance_destroy();
         exit;
     }

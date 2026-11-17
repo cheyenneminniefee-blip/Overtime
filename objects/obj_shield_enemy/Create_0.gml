@@ -17,3 +17,6 @@ poise_window = 120;
 // --- State AI Handlers ---
 scr_walk   = scr_shield_enemy_walk;
 scr_attack = scr_shield_enemy_attack;
+
+// --- Death Prop ---
+death_overlay = spr_enemy_shield_death;

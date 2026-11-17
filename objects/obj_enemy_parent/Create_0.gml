@@ -49,6 +49,9 @@ was_airborne = false;
 // --- Hitbox Instance Variables ---
 attack_hitbox = noone;
 
+// --- Death (spr_enemy_death is shared; variants override the prop overlay) ---
+death_overlay = -1;
+
 // --- Time Freeze (PRD 11.2) ---
 // Captured by the time-domain manager on freeze; instances born mid-freeze
 // spawn pre-frozen (and pre-tinted) so they never animate before their first

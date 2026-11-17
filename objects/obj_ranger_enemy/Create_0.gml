@@ -17,3 +17,6 @@ spr_stunned   = spr_ranger_enemy_stunned;   spr_stunned_nm = spr_ranger_enemy_st
 // --- State AI Handlers ---
 scr_walk   = scr_ranger_enemy_walk;
 scr_attack = scr_ranger_enemy_attack;
+
+// --- Death Prop ---
+death_overlay = spr_enemy_gun_death;

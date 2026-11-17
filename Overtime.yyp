@@ -36,6 +36,7 @@
   "name":"Overtime",
   "resources":[
     {"id":{"name":"obj_camera","path":"objects/obj_camera/obj_camera.yy",},},
+    {"id":{"name":"obj_enemy_death","path":"objects/obj_enemy_death/obj_enemy_death.yy",},},
     {"id":{"name":"obj_enemy_melee_hitbox","path":"objects/obj_enemy_melee_hitbox/obj_enemy_melee_hitbox.yy",},},
     {"id":{"name":"obj_enemy_melee","path":"objects/obj_enemy_melee/obj_enemy_melee.yy",},},
     {"id":{"name":"obj_enemy_parent","path":"objects/obj_enemy_parent/obj_enemy_parent.yy",},},
