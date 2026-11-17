@@ -31,6 +31,14 @@ var _eratio = energy / energy_max;
 draw_sprite_ext(spr_energy, 0, _margin, _ey, _eratio * _inner_w * _scale, (_inner_h / _fill_h) * _scale, 0, c_white, 1);
 draw_sprite_ext(spr_energy_border, 0, _margin, _ey, _scale, _scale, 0, c_white, 1);
 
+// --- FREEZE FIZZLE (PRD 5.2: rejected activation pulses the meter) ---
+// Icy-blue pulse over the energy border — the freeze-associated hue, not the
+// damage flash (PRD 12.3)
+if (freeze_fizzle_timer > 0) {
+    var _fizzle_alpha = 0.5 + 0.5 * sin(freeze_fizzle_timer * 1.5);
+    draw_sprite_ext(spr_energy_border, 0, _margin, _ey, _scale, _scale, 0, FREEZE_TINT, _fizzle_alpha);
+}
+
 // --- GRENADE PIPS (PRD 12.1: bottom-left, under stamina) ---
 // Drawn in the gap between the stamina and energy bars, centered vertically
 if (has_grenades) {

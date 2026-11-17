@@ -179,6 +179,7 @@ if (buffer_lockout_timer > 0) {
 if (invuln_timer > 0) invuln_timer -= 1;
 if (hurt_timer > 0)   hurt_timer -= 1;
 if (parry_timer > 0)  parry_timer -= 1;
+if (freeze_fizzle_timer > 0) freeze_fizzle_timer -= 1;
 if (flash_timer > 0)  flash_timer -= 1;   // flash is now global (see note)
 if (phase_slash_cooldown > 0) phase_slash_cooldown -= 1;
 

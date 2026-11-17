@@ -38,6 +38,9 @@
 
 // Time Freeze (PRD 5.2) — 5 s freeze, 30 s cooldown starting at activation.
 // FROZEN_DAMAGE_MULT: frozen enemies take half damage (fractions kept).
+// FREEZE_TINT: the icy tint on frozen enemies and the screen overlay —
+// deliberately distinct from the white damage flash (PRD 12.3).
 #macro FREEZE_DURATION 300
 #macro FREEZE_COOLDOWN 1800
 #macro FROZEN_DAMAGE_MULT 0.5
+#macro FREEZE_TINT make_color_rgb(120, 190, 255)

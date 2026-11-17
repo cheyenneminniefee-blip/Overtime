@@ -94,6 +94,7 @@ invuln_timer = 0;      // Mercy invulnerability frames after taking a hit
 hurt_timer = 0;        // Input lockout while hit knockback plays
 parry_window = 8;      // Frames after raising the block that count as a perfect parry
 parry_timer = 0;       // Counts down from parry_window once block starts
+freeze_fizzle_timer = 0;  // Pulses the energy border when a Freeze request is rejected (PRD 5.2)
 u_flash = shader_get_uniform(shd_flash, "u_flash");
 
 // --- PURE SHADOW UNIFORMS ---
