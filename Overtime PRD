@@ -1,0 +1,2076 @@
+Overtime — Project Requirements Document (PRD)
+Version: 3.3 · Engine: GameMaker Studio 2 (GML) · Platform: PC (Windows) first, Steam Deck verification target · Status: In development — M0 vertical slice complete
+This document describes the current design only. All decision history — change entries C1–C109, the review and owner-directive coverage maps — lives in CHANGELOG_Overtime.md. Readers never apply deltas: what is written here is what is built. Open items are collected in §18 (R21 tracks the unset floor-hitbox constants that the traversal bands depend on).
+
+1. Executive Summary & Game Overview
+1.1 Premise
+In a desolate, desert-covered future, humanity's remnants are abruptly abducted by an aggressive cyborg alien race. The player controls a lone human survivor traversing three hostile frontiers — their barren home desert, the sprawling alien carrier vessel, and the alien homeworld — on a high-stakes mission to rescue their species.
+1.2 Core gameplay loop & pillars
+Genre: 2D side-scrolling action platformer, single player, 30 fps.
+Pillar
+Concrete systems that deliver it
+High-mobility traversal
+Precise custom physics (§4.1), dodge-launched sprint and gravity-suspended air dodge with after-images (§5.5), Phase Slash (§5.3)
+Tactical resource management
+The dual economy — stamina for sprint/dodge/guard, energy for Time Freeze (full-meter gate) and Phase Slash (§5.6) — plus grenade carry limit
+Twitch-reflex combat
+Mandatory telegraph windows of at least 0.4 s (§6.6), poise and stagger (§6.4), perfect parry (§5.4), unblockable heavy attacks that must be dodged (§6.2, §7.2), frame-perfect hitboxes (§11.3)
+Environmental puzzle-solving
+Grenade chain detonations (§6.7), Time Freeze repositioning (§5.2)
+
+Structure: three acts, each consisting of 4 generated levels plus 1 hand-built boss arena (15 levels total, §8.1), with a hidden Afterlife state machine (§9) running across the entire campaign.
+1.3 The hook
+Death does not end the input. At 0 HP the player gets 30 seconds of Overtime to clutch the segment; and if the player keeps dying, the Grim Reaper starts taking it personally.
+
+2. Glossary & Naming Conventions
+Term
+Definition
+Overtime
+The game's title.
+Overtime State
+The 30 s post-death clutch mechanic (§5.1). Specs always write "Overtime State" for the mechanic to avoid collision with the title.
+True Death
+Dying for real: taking damage during Overtime State, the Overtime State expiring, or an environmental instakill. Increments global.run.deaths.
+Afterlife
+The hidden room and its state machine around the Grim Reaper (§9).
+Run
+One campaign playthrough, New Game to credits. All progression state lives in global.run (§11.5).
+Level
+One of the 15 numbered stages (§8.1). Twelve are generated from chunk templates; three are hand-built boss arenas.
+Chunk
+A 20 x 23-tile authored room module (§8.4).
+Template
+A chunk's exported data record in templates.json.
+Workshop
+rm_workshop, the authoring room where templates are built and exported (§8.4).
+Walk
+The always-available base movement speed, 240 px/s (§4.1).
+Sprint
+Held high-speed movement, 330 px/s, paid from stamina. A sprint start fires a dodge on the press frame when the dodge is available and continues as sprint if the button stays held; otherwise it starts as a plain sprint (§5.5-§5.6).
+Dodge
+A 0.2 s burst at 480 px/s with full-duration i-frames and after-images; ground or air (an air dodge suspends gravity and cancels all vertical momentum); passes through enemy bodies; shares its button with sprint and fires on the press frame (§5.5).
+After-image
+A draw-only ghost sprite trailed by the dodge (§5.5).
+Stamina
+The physical resource: sprint, dodge, and guard-block drains (§5.6).
+Energy
+The ability resource: Phase Slash cost and the Time Freeze full-meter gate (§5.6).
+Heavy attack
+An enemy melee attack of the HEAVY damage type: unblockable, full damage through guard, must be dodged, and cannot be interrupted (§6.2, §6.4, §7.2).
+Heavy Weapon
+One of three post-Traefin weapons (greatsword, spear, mace): a special attack triggered by holding the attack button — rooted, uninterruptible, long wind-up, no abort once committed (§5.8).
+Commitment
+A heavy weapon's locked-in span from the first wind-up frame through recovery end: the player is rooted, every input is ignored, and nothing cancels or interrupts it (§5.8).
+Hard Light Sword
+The always-equipped 4-way melee baseline: 18 damage, 0.4 s cycle (12 f: 3 startup / 3 active / 6 recovery), 48 px reach, full mobility (§5.8).
+Cancel-raised guard
+A guard raised by cancelling a sword swing's recovery. It blocks from its first frame but has no parry window (§5.4).
+Poise
+Enemy stagger meter (§6.4).
+Telegraph
+The mandatory pre-attack warning window (§6.6).
+Perfect parry
+Raising guard from neutral within the 3-frame window; stuns the attacker (§5.4).
+Echo Reaper
+The reduced permanent-mode Reaper fight (§9.4).
+Stand-in Reaper
+The M1c playtest stand-in for the Reaper boss: Traefin reskinned via obj_boss_parent (§15.2, R10).
+Freeze budget
+Max 2 Time Freezes per boss attempt, each at halved duration (§5.2).
+Frozen damage multiplier
+frozen_damage_mult = 0.5: the share of player damage that a frozen enemy or boss part takes (§5.2).
+Time domain
+The single manager that arbitrates pause / dialogue / hitstop / freeze (§11.2).
+Sprite frame
+One frame of a sprite animation: 0.1 s = 3 logic frames for gameplay sprites; 0.05 s = 1.5 logic frames for boss sprites, so boss windows use even frame counts. Every combat window is a whole number of sprite frames (§11.3).
+anim_tick
+The per-object integer animation counter from which the sprite frame is derived; paused with its owner by the time-domain manager (§11.3).
+Floor hitbox
+The collision box that decides grounded and landing support: width floor_w, minimum overlap floor_overlap (§4.1).
+Safe lane
+A guaranteed walkable gap in a sweeping hazard (§10.3 Dual Laser Sweep).
+Set-piece chunk
+A template force-injected at a fixed level position to guarantee a teaching moment (§8.4).
+Recovery platform
+A 2-tile ledge inside a gated gap's pit with a climb-back route — a failed gated attempt is a climb, never a pit death (§8.4).
+Dead tile
+A gap width the generator never emits because it sits inside a band-boundary margin (§8.4).
+Main path / dip / spur
+Generator path concepts (§8.4).
+Swept collision
+Per-axis segment (line) collision required for any mover displacing 16 px or more per step (§11.1).
+
+Naming rules: enemy energy projectiles are ion bolts (ION is an enemy-only damage type — the player has no ranged weapon). All timers are given in seconds with frame counts at 30 fps in parentheses. Combat windows are additionally given in sprite frames. All pixel values assume 32 px tiles. The base resolution is 640 x 360; a "screen width" is 20 tiles.
+
+3. Implementation Status
+System
+Status
+Notes
+Player state machine & combat (custom velocity, 4-way melee)
+Implemented
+Blaster / free-aim / recoil-fire code is dead — stripped in M1a (R17); stamina + dodge/sprint land in M1b
+Guard + perfect parry (attacker stun)
+Implemented
+§5.4; blocked-hit drain draws from stamina; ground-only, no movement while held; guard-cancel rules, cancel-raise parry rule, and frame-tied windows verified in M1b
+obj_enemy_parent framework (poise, ambush, parry-stun, hit-flash shader)
+Implemented
+§7.1; Step bodies migrate to on_step() in M1a; enemy heavy attacks added in M1c
+Bestiary variants: Standard Cyborg, Ranger, Grenadier, Heavy
+Implemented
+§7.2; heavy attacks (Standard + Heavy Cyborg) and the Heavy turn lockout land in M1c
+obj_boss_parent framework + Traefin
+Implemented
+§10.0-§10.1; animation-clock and frame-alignment audit for 20 fps boss anims in M1a
+3-layer desert parallax background, horizontal looping
+Implemented
+§11.8
+Chunk template pipeline (workshop to templates.json to generator)
+In progress
+§8.4; schema versioning lands before slot filling completes; the traversal validator simulates the envelope from tuning.json, floor hitbox included (§8.4, Appendix B)
+Shared hit pipeline (obj_hitbox + damage types, frame-bound hitboxes)
+Partial
+Refactor in M1a; HEAVY and STUN types and per-frame hitbox data enter with it
+Animation driver (anim_tick) + per-frame hitbox data + frame-alignment audit
+Planned
+M1a step 9 (§11.3)
+Stamina / energy systems, dodge (ground + air) + after-images, dodge-launched sprint
+Planned
+M1b
+Hold-to-heavy input chain (tap/hold contract)
+Planned
+M1b (mechanics, debug weapon); the three weapons + armory land in M1c
+Phase Slash (truncation mechanics)
+Planned
+M1b mechanics; content unlock at L6 in M2
+Time Freeze, Overtime State, Afterlife, Mandaxx, Modal, Reaper
+Planned
+Overtime State + save in M1b; Afterlife loop via stand-in Reaper in M1c; Freeze in M2; Mandaxx M2; Modal + Reaper Phase 2 M3
+Checkpoints, save system, HUD (stamina meter; energy meter hidden until first energy unlock)
+Planned
+§4.4, §12
+Scripted-input replay harness
+Planned
+First M1a deliverable — it anchors before/after verification for the whole retrofit
+
+
+4. Player Specification
+4.1 Physics & feel — custom velocity, 30 fps [IMPLEMENTED — retuned in M1a]
+Commitment: all gameplay movement uses custom velocity variables (hsp, vsp) with manual collision resolution (place_meeting / instance_place sweeps, sub-pixel accumulation). Built-in vspeed, hspeed, gravity, and friction are banned in gameplay objects. Logic runs at a fixed 30 fps (room speed 30) — all frame counts in this document are 30 fps counts.
+Parameter
+Baseline value
+Walk speed
+240 px/s (always available)
+Sprint speed
+330 px/s (stamina, §5.6)
+Dodge burst
+480 px/s for 0.20 s (6 f = 2 sprite frames) — faster than walk and sprint; ground or air (§5.5)
+Ground / air acceleration
+1800 / 1200 px/s²
+Ground friction
+2200 px/s²
+Jump velocity
+-560 px/s
+Gravity (rising / falling)
+1600 / 2000 px/s²
+Jump apex
+about 98 px (3 tiles)
+Max fall speed
+900 px/s
+Variable jump cut
+release before apex clamps vsp to -200
+Jump takeoff hsp clamp
+330 px/s — jump momentum never exceeds sprint speed; dodge momentum is clamped off at takeoff (§5.5)
+Dodge exit hsp clamp
+330 px/s — dodge speed exists only inside the 6 f burst; no post-dodge overshoot
+Coyote time
+0.10 s (3 f) — designed forgiveness, counted in every traversal figure below. A dodge-initiated ledge exit grants none (§5.5)
+Floor hitbox width (floor_w)
+24 px — illustrative baseline; set from the shipped player floor hitbox in M1a (R21)
+Floor overlap (floor_overlap)
+1 px — the minimum overlap with solid that still counts as standing or landing (R21)
+Jump input buffer
+0.12 s (4 f)
+Attack input buffer
+0.07 s (2 f)
+Post-hit invulnerability (i-frames)
+0.73 s (22 f)
+
+Reference points. The player origin is the bottom-center of the collision box. Heights are measured from the surface the player stands on. Horizontal reach is the displacement of the origin.
+Floor hitbox rule. Support is decided by the floor hitbox alone. A player can stand with floor_w − floor_overlap pixels of that box hanging past a ledge edge, and lands as soon as floor_overlap pixels of it touch the far platform. A gap of width G is therefore crossable when the simulated origin reach R satisfies:
+R + floor_w − 2 × floor_overlap ≥ G
+The term floor_w − 2 × floor_overlap is the floor bonus b (22 px at the baseline values). The generator and the validator both apply it, together with a 16 px safety margin on each side of every band (§8.4, Appendix B).
+Derived traversal envelope. Reach figures are the physics derivation at the baseline constants (b = 22 px). Coyote time is part of the designed envelope — a jump leaving a ledge rides 0.10 s of carried speed — so the effective columns are the honest ones the validator enforces. Dodge chains assume the best dodge timing: because the dodge cancels all vertical momentum (§5.5), the longest reach comes from dodging about 0.22 s after the apex, with the fall already under way, and the simulation searches every logic frame for it (Appendix B).
+Technique chain
+Spec reach
++ coyote
++ floor bonus
+Crosses (tiles)
+Walk-jump
+159 px (5.0 t)
+183 px
+205 px
+6
+Sprint-jump
+219 px (6.8 t)
+252 px
+274 px
+8
+Walk-jump + air dodge
+290 px (9.1 t)
+314 px
+336 px
+10
+Sprint-jump + air dodge
+358 px (11.2 t)
+391 px
+413 px
+12
+Walk-jump + air dodge + Phase Slash
+450 px (14.1 t)
+474 px
+496 px
+15
+Sprint-jump + air dodge + Phase Slash
+518 px (16.2 t)
+551 px
+573 px
+17
+Dodge-jump + air dodge (hsp clamped at takeoff)
+= sprint-jump + air dodge
+= 391 px
+= 413 px
+12
+Ledge dodge (no coyote, no jump)
+dash and fall
+—
+—
+no chain
+
+An unclamped dodge-jump (480 px/s for the whole 0.663 s arc) would cover 318 px by itself and about 537 px (nearly 17 tiles) with the air dodge, coyote, and floor bonus — far past the Phase Slash band — which is why the takeoff clamp exists: a dodge-jump is exactly a sprint-jump. A dodge that carries the player off a ledge grants no coyote time, so it can never start a jump chain (§5.5). The air dodge is horizontal-only and never gains height (it cancels vertical momentum, it does not add any), so no ability raises the 3-tile climb; vertical navigation uses platform stacks (§8.4).
+Implemented state machine: idle / walk / sprint (M1b) / jump / fall / ground and air melee (4 directions) / dodge (M1b) / guard / hurt / Overtime entry / death. The blaster, free-aim, and recoil-fire states are dead code pending the M1a strip (R17).
+4.2 Vitality
+Max HP 100 (125 after the Reaper's Toll, §9.7). No passive regeneration; checkpoints and pickups heal.
+Enemies deal 10-35 per hit (§7.2, §10); with 22 f i-frames the player survives 3-10 hits depending on source.
+4.3 Controls & input scheme
+Action
+Keyboard / Mouse
+Gamepad
+Move
+A / D or arrow keys
+Left stick / D-pad
+Jump
+Space only
+A (bottom face button)
+Aim modifiers (up/down attacks)
+W / S or arrows — never jump
+Left stick / D-pad
+Hard Light Sword (4-way) — tap
+LMB (direction from held aim keys or facing)
+X
+Heavy Weapon — hold
+LMB held (§5.8)
+X held
+Guard (hold)
+RMB
+Y
+Dodge → Sprint (press fires dodge; hold continues into sprint)
+Shift
+LT
+Phase Slash
+Q
+RT
+Time Freeze
+E
+RB
+Photon Grenade
+G
+B
+Pause
+Esc
+Start
+
+Jump is Space only. W and Up are exclusively attack-aim modifiers, so an up-slash can never jump and a jump can never eat an up-aim.
+Shift / LT is the shared dodge-sprint button. The press fires a dodge on the press frame (zero added latency) whenever the dodge is available (stamina of 20 or more, cooldown clear). If the button is still held when the 6 f burst ends, the player flows into sprint; releasing earlier leaves a plain dodge. If the dodge is unavailable, a held press starts a plain sprint at once (15 stamina). In the air the press is an air dodge only. Full rules: §5.5.
+The attack button is tap/hold too. Tap swings the sword — it fires on the press frame with zero added latency (the common action never waits on a hold timer). Holding past the 9 f threshold (three sprite frames, §5.8) chains the swing into the heavy weapon wind-up. The dedicated Heavy Weapon binding (F on keyboard, LB on gamepad — the one unassigned default) is freed; it returns as an accessibility remap (§12.3). Dodge works on the ground and in the air.
+Guard roots the player. While guard is held the player cannot move or jump (§5.4); facing can still be changed in place, and dodge is the exit.
+Attack from guard. Pressing attack while guard is held — including during a parry stun — cancels guard immediately and starts the swing. Guard must be freshly pressed afterwards: holding the button never re-raises it (§5.4).
+Guard from attack. A guard press cancels a sword swing during its recovery frames only. A guard press is ignored during a heavy weapon commitment, which nothing can cancel (§5.4, §5.8).
+Ignored inputs. During a heavy weapon commitment every input is ignored — movement, jump, dodge, guard, sword taps, and the attack button itself (releasing it does nothing). Presses are not buffered, except for presses in the final 2 frames of recovery, which carry over so the next action feels immediate.
+All action inputs (jump, dodge, attack, Phase Slash, Freeze, grenade, guard) carry a 2 f pressed-buffer: a press that lands between input samples is registered on the next frame and consumed there — no press is ever eaten by the 30 Hz sample grid (§16).
+Rebinding: full keyboard/mouse remapping UI in M2; gamepad presets in M2 and full pad remapping in M3 (§15).
+Supported devices: keyboard + mouse; XInput, DualShock, and Switch Pro controllers.
+4.4 Checkpoints, saves, and the death flow
+obj_checkpoint obelisks: the generator places one at level entry and every 5th main-path chunk (about 3-4 per level). Touching one: full heal, grenade resupply, heavy weapon swap menu (§5.8), autosave.
+Heal precedence rules:
+O1. Completing the Overtime State always sets HP to exactly 35.
+O2. If the completing event is a checkpoint touch, that checkpoint's full heal is suppressed — the save and grenade resupply still apply.
+O3. If the completing event is the level exit, the next level's entry checkpoint full-heals as normal: a new level is a fresh start, and the 35 HP rule governs mid-level continuation, boss arenas, and exit-adjacent combat. (Deliberate: exiting under Overtime already banks the level.)
+Save system:
+Path: game_save_id — the per-game local storage directory — not working_directory (which is for packaged assets such as templates.json). Files: save.json + save.bak.
+Write pattern (deliberately not rename-based — the manual does not guarantee that file_rename overwrites an existing destination, and it returns false on failure): (1) copy the current save.json to save.bak; (2) write the new save.json; (3) verify by re-reading and parsing; on any load-time parse failure, fall back to save.bak.
+Contents: global.run (§11.5 — including level_seed and the persisted overtime{} state) plus a version field with migration hooks.
+Autosave triggers: checkpoint touch, boss victory or arena clear, Afterlife transitions, level transition, and Overtime entry.
+Save & Quit during Overtime: persists the full Overtime state — remaining timer, kill count, HP 0. Reloading resumes at the last checkpoint still in Overtime with the saved remaining time. There is no path by which quitting converts an Overtime into a free heal or dodges the death counter.
+No manual saves; "Save & Quit" from the pause menu resumes at the last checkpoint.
+Death flow:
+HP reaches 0
+   |
+   v
+OVERTIME STATE (30 s, +5 s and +15 energy per kill, cap 60 s)
+   |
+   |-- reach checkpoint / level exit / kill or clear the boss --> survive: HP = 35 (rules O1-O3)
+   |
+   +-- timer expires OR any unguarded damage taken ------------> TRUE DEATH
+                                                                   |
+                                                                   v
+                                                      AFTERLIFE (state machine, section 9)
+                                                                   |
+                                                                   v
+                                          respawn at last checkpoint (per section 9 rules)
+Environmental instakill (pit / crush): TRUE DEATH directly; Overtime State is skipped.
+
+5. Abilities & Weapons
+5.1 Overtime State [PLANNED — design locked]
+Rule
+Specification
+Trigger
+Player HP reaches 0 from any combat source
+Duration
+30 s base; +5 s per enemy kill (timer caps at 60 s); kills also restore 15 energy (§5.6) — aggressive play refuels Time Freeze during the clutch
+Damage taken
+Any unguarded damage causes True Death immediately. Blocked and parried hits deal no damage and never count; dodge i-frames avoid damage outright (§5.5) — the dodge is the Overtime survival tool
+Completion
+Reach any checkpoint or the level exit with time remaining. In boss arenas (no checkpoints): kill the boss, or clear the arena — for Mandaxx, whose fight ends in an escape instead of a death, the escape sequence completing counts as clearing the arena (§10.2)
+On completion
+Overtime ends, HP set per rules O1-O3 (§4.4), position retained, deaths NOT incremented
+On failure
+Timer expiry or unguarded damage causes True Death, then the Afterlife (§9); deaths incremented
+Time Freeze
+Usable, but the Overtime timer keeps counting — it is not physical time
+Environmental instakill
+Pits and crushers bypass Overtime into True Death directly. The generator's recovery-platform rule (§8.4) exists precisely so gated-gap failures never become pit deaths
+In the Afterlife
+Cannot trigger (the player is already dead); HP 0 in the Afterlife arena consumes a boss attempt (§9)
+Persistence
+Save & Quit during Overtime resumes in Overtime with the saved remaining time (§4.4, AC25)
+HUD
+Replaces the HP bar with a center-top countdown; pulses red below 5 s
+
+5.2 Time Freeze [PLANNED]
+Design rules:
+Cost: requires the energy meter at exactly full (100); activation drains it to 0 (§5.6). Below full, activation is rejected with a fizzle and an icon flash. Spending Phase Slashes visibly delays the next Freeze — that tension is the point of the shared meter.
+Duration 5 s; cooldown 30 s starting at activation (the cooldown usually dominates refuel time; the full-meter gate binds when Phase Slash spending interrupts banking). One charge, no stacking.
+Frozen enemies still take damage — at half. Every player damage source (sword, heavy weapons, Phase Slash, grenade blasts) is multiplied by frozen_damage_mult = 0.5 against a frozen enemy or boss part; fractions are kept. A frozen enemy does not flinch: no poise damage is dealt, and no stagger, stun (including the mace shockwave), or knockback applies while it is frozen, because a frozen entity does not change state. A frozen enemy reduced to 0 HP is killed at once by the hit pipeline — kill credit, +5 s of Overtime, +15 energy, drops, and death FX all resolve immediately and the instance is destroyed even though it is not ticking. Frozen hostile projectiles and hazards are not damageable; player attacks pass through them.
+Frozen hostiles cannot hurt the player: all hostile hitboxes are disabled while frozen, so contact with a frozen enemy or stopped projectile deals no damage. Time Freeze remains first a defensive and repositioning tool; chipping enemies at half damage with no stagger is a deliberate, limited bonus.
+Grenades vs frozen targets: the player is operational during a freeze, so a grenade thrown during one flies normally, is not frozen, and detonates on schedule. Its blast deals half damage to frozen enemies (the same 0.5 multiplier) and still deals full damage to the player (friendly fire). A grenade already in flight when a freeze starts is player-owned and keeps flying under the same rule.
+Boss freeze budget: in any boss attempt, the first two activations each last 2.5 s (halved); further activations are rejected until the attempt resets. Bosses and their parts are frozen like any enemy, so they take half damage during a freeze. This stops per-pattern freezing while keeping the repositioning utility.
+Fully frozen: regular enemies, boss parts, hostile projectiles, hazards, gameplay particles, gameplay sequences.
+Keeps running: ambient background, parallax, HUD, dialogue.
+During Overtime State: usable; the Overtime timer is unaffected (§5.1).
+Engineering architecture: §11.2 (time domains + the unskippable gate).
+5.3 Phase Slash [PLANNED]
+Parameter
+Value
+Teleport distance
+160 px (5 tiles), horizontal, in facing or held direction
+Damage
+25, type PHASE (pierces shields), applied to enemies in the transit corridor (48 px tall)
+Cost
+40 energy (§5.6)
+Cooldown
+2.0 s
+I-frames
+0.20 s (6 f) during the transit — long enough to pass through a 24 px beam or hazard sweep
+Terrain rule
+The dash stops at the last collision-free position before the first solid along the path (plus an 8 px margin); the cost and cooldown apply only on an actual teleport (a fully blocked path — 0 px of travel — fizzles for free)
+No wall crossing
+Phase Slash never passes through solid terrain of any thickness. It can cross pits, gaps, enemies, and hazards, but the first solid in its path ends the slash. Because walls cannot be crossed, no out-of-bounds barrier objects are needed at chunk seams or arena bounds
+
+5.4 Guard & perfect parry [IMPLEMENTED — rework verified in M1b]
+Guard: ground-only. The player cannot move while guard is held: hsp is forced to 0 and jump input is ignored. Facing can still be changed by pressing the opposite direction (turn in place). Dodge is the exit (it is usable from guard); releasing guard restores movement. Each blocked hit drains 10 stamina; at 0 stamina the guard breaks (0.5 s stagger, no damage). Stamina regen (§5.6) refuels turtling slowly, and the shared stamina pool means turtling disarms sprinting and dodging — the physical economy all trades against itself.
+Hold Guard to block MELEE, ION, and BONE damage from the front; blocked hits apply pushback but no damage.
+Blockable vs unblockable: SHOCKWAVE-class hits (boss stomps, slams) break guard — the hit is negated but the player staggers and guard drops. HEAVY, HARPOON, PUNCH, EXPLOSIVE, PHASE, and LASER are unblockable — full damage through guard. Enemy heavy attacks and boss kicks must be dodged (§5.5, §7.2).
+Perfect parry: raising guard from neutral within 0.10 s (3 f) of an incoming hit negates the damage at zero stamina cost, stuns the attacker for 2.0 s, and resets its poise (§6.4); parried ion bolts reflect at 1.5x speed. The parry window is exactly one gameplay animation frame (1 sprite frame = 3 logic frames, §11.3) — what the player sees is precisely what is active. The window was sized with the 33 ms sampling slack included: the player-perceived acceptance is 100-133 ms.
+Guard and attack cancels:
+Attack cancels guard. Pressing attack while guard is held — including during a parry stun — cancels guard immediately and starts the swing (and, if the button stays held, the heavy chain). Guard must be freshly pressed afterwards; holding the guard button never re-raises it.
+Guard cancels sword recovery. A guard press cancels a sword swing during its recovery frames only (sprite frames S3–S4, f7–f12). Startup and active frames cannot be cancelled, so a swing's hitbox always lives its full 3 f. This mirrors the dodge, which is also usable from sword recovery.
+Cancel-raised guard has no parry window. A guard raised by cancelling a sword recovery blocks normally from its first frame but offers no perfect parry. The 3 f parry window exists only on a guard raised from neutral (idle, walk, sprint, or after the previous action has fully ended). Without this rule the sword's 6 f recovery would cost nothing against blockable attacks, and a swing-cancel-parry loop would fish for parries every cycle.
+Nothing cancels a heavy commitment. Guard input is ignored from heavy wind-up start through recovery end, exactly like every other input (§5.8).
+Ignored is not buffered, except for presses in the final 2 frames of recovery (§4.3).
+Overtime ruling: blocked and parried hits never count as damage taken — a turtling player during Overtime delays but cannot escape the timer, and unguardable sources (heavy attacks, explosives, lasers, grabs) remain lethal (§5.1).
+Anti-turtle bookkeeping is guard's shadow, not parry's: enemy heavy-attack triggers count plain blocks only — a parry already stuns the attacker for 2.0 s and resets its aggression (§7.2). Skilled play is rewarded, never punished, by the trigger.
+5.5 Dodge & Sprint [PLANNED — M1b]
+One button, two behaviors: the press fires a dodge; holding through the burst continues into sprint. Every sprint start from rest therefore begins with a dodge burst whenever the dodge is available — a launch step with free i-frames.
+Parameter
+Value
+Trigger
+Press of Shift / LT. The dodge fires on the press frame — no hold-detection delay
+Dodge duration
+0.20 s (6 f = 2 sprite frames)
+Dodge speed
+480 px/s — 2x walk, faster than sprint; direction from held input or facing (backward dodges allowed)
+Dodge i-frames
+The full 6 f duration — dodging is how unblockable heavy attacks are answered (§7.2, AC28)
+Pass-through
+During the dodge the player ignores enemy body collision — the roll passes through any enemy, including a Heavy Cyborg's shield wall, landing behind it. Terrain collision is unchanged. At dodge end, a player overlapping an enemy body is ejected along the travel direction to the nearest free position (up to 32 px); if terrain blocks that side, the ejection goes to the other side. Overlap never deals contact damage during the ejection frame
+Stamina cost
+20 (§5.6), charged on every dodge, including a sprint-start dodge. A dodge below 20 stamina is not fired (see Sprint start)
+Cooldown
+0.5 s between dodges, anchored to dodge end (the 6 f burst plus a 15 f gap before the next is accepted)
+Surface
+Ground and air. A ground dodge is a grounded state: if the player leaves the ground during the burst, gravity resumes on the first unsupported frame — the dodge continues as a dash and a normal fall, not a hover. An air dodge is a straight horizontal line that cancels all vertical momentum: vsp is set to 0 at dodge start, gravity is suspended for the 6 f, and the fall resumes afterwards from vsp = 0 — the pre-dodge vertical speed is not restored. A dodge during a rise ends the rise at once (it costs height); a dodge during a fall resets the fall speed (it buys airtime, which the §4.1 reach figures include at the best dodge timing). A dodge never gains height. One air dodge per airborne period, refreshed on landing; a ground dodge that carries the player off a ledge does not consume it
+No coyote after a dodge ledge exit
+Leaving the ground while a dodge is active grants no coyote time: jump input during the carry and the following fall is buffered (4 f) and consumed on landing, never accepted in the air. Coyote applies only to ledge exits by walking or sprinting. Combined with the end-anchored 0.5 s cooldown, a ledge dodge cannot chain into a jump or a second dodge to extend reach (Appendix B, CH6)
+Momentum clamps
+On jump takeoff, hsp clamps to 330 px/s (sprint speed) — a jump out of a dodge is exactly a sprint-jump, never a 480 px/s rocket (§4.1). On dodge exit, hsp clamps to 330 as well — the burst speed exists only inside the 6 f
+Cancels
+Dodge is usable from guard and from sword recovery; it is ignored during a heavy weapon commitment (§5.8)
+
+Sprint start (resolution order at the press frame):
+Air: the press is an air dodge if one is available, otherwise a fizzle. There is no sprint in the air; takeoff speed carries per the 330 px/s clamp.
+Ground, dodge available (stamina of 20 or more, cooldown clear): the dodge fires. If the button is still held when the burst ends and at least 15 stamina remains, sprint begins at 330 px/s (drain starts). With fewer than 15 remaining, the player walks and the button must be re-pressed. Releasing during the burst leaves a plain dodge.
+Ground, dodge unavailable (cooldown active, or 15-19 stamina): a held press starts a plain sprint immediately (15 stamina to engage); releasing stops it. A rejected dodge at 15-19 stamina plays the fizzle cue; a cooldown rejection is silent. Below 15 stamina the press fizzles.
+Re-engage after empty: after stamina hits 0, sprint requires 30 (anti-flutter).
+After-images: during the dodge, the player trails 3 draw-only ghosts spawned at 2 f intervals, each living 6 f with alpha 0.5 / 0.3 / 0.15, drawn from the player sprite through the tint-shader path already built for hit flashes (§7.1). No collision, no logic — three cheap sprite draws, comfortably inside the §16 budget.
+The air dodge's job: it is the mobility heir of the removed recoil jump — it extends jump reach (§4.1: walking 6 -> 10 tiles, sprinting 8 -> 12 with the floor bonus), answers enemy heavy attacks without waiting for the ground (§7.2), and recovers short jumps or a bad fall. It is deliberately not a hover or a climb: one per airtime, horizontal, and it never gains height.
+Dodge design summary: i-frames full-duration; fires on press; pass-through on enemy bodies with an ejection rule; vertical momentum cancelled; horizontal momentum clamped at takeoff and exit so traversal bands stay honest; no coyote after a ledge dodge; cooldown anchored to the end of the move.
+5.6 Resources: Stamina & Energy [PLANNED — M1b]
+Two meters, two roles: stamina is the moment-to-moment physical economy (refuels fast, spends constantly); energy is the strategic ability economy (refuels slowly, gates the big buttons).
+Stamina (amber)
+Value
+Max
+100
+Sprint drain
+20/s (5 s of continuous sprint from full)
+Sprint start via dodge
+Dodge cost 20; sprint continues after the burst only if 15 or more remain — 35 from rest
+Plain sprint (dodge unavailable)
+Requires 15 stamina to engage; no dodge cost
+Sprint sustain
+Runs until stamina reaches 0
+Sprint re-engage after empty
+Requires 30 (anti-flutter: no stutter-sprinting at 0-15)
+Dodge cost
+20 (not fired below 20)
+Guard blocked hit
+10
+Regen
+30/s after 0.5 s without sprinting, dodging, or blocking
+
+
+Energy (cyan)
+Value
+Max
+100
+Regen
+10/s, always (4 s to re-bank after one Phase Slash; 8 s after two; 10 s from Freeze-drained to full)
+Kill bonus
++15 per enemy kill (also during Overtime)
+Phase Slash cost
+40
+Time Freeze gate
+Requires the meter at exactly 100; activation drains it to 0 (§5.2)
+
+Design notes: the dual economy replaces the removed blaster's ammo role. Spending two Phase Slashes (80 energy) delays the next Time Freeze by 8 s of banking — the HUD freeze icon (which lights only at full, §12.1) makes the trade readable at a glance. Stop-and-go sprinting carries a tax by design: every fresh sprint start from rest pays the 20-stamina dodge when the dodge is available. Re-presses inside the 0.5 s cooldown fall back to a plain sprint at no dodge cost, so pacing a long corridor with deliberate bursts is a stamina-management skill (§8.1, L11), not a trap.
+5.7 Photon Grenade [player variant PLANNED; grenadier variant IMPLEMENTED]
+Carry limit 3. Resupply: full at checkpoints; +1 per Grenadier kill (25% drop).
+Throw: 420 px/s on a fixed arc; bounces (0.5 restitution); fuse 1.1 s from throw.
+Blast: 72 px radius, 30 damage, type EXPLOSIVE, friendly fire ON — damages the player, enemies, and bosses (§6.3).
+Vs frozen targets: the blast deals half damage to frozen enemies (§5.2); the player still takes full damage from their own blast.
+Sympathetic detonation with chain caps: §6.7.
+5.8 Heavy Weapons & the Hard Light Sword [PLANNED — M1b mechanics, M1c content]
+After defeating Traefin, the L6 entry armory presents three pedestals: greatsword, spear, mace. The player chooses one; the choice can be re-made at any checkpoint (the loadout.heavy_weapon field, §11.5). The Hard Light Sword stays the fast, mobile, 4-way baseline — heavy weapons are the committed second slot, and they are special attacks on the attack button itself: tap swings the sword; hold the button to swing into the heavy. Heavy weapons are triggered by holding the attack button (LMB / X), never the guard button.
+The Hard Light Sword — pinned timings (the heavy comparison baseline). Every window is a whole number of sprite frames (1 sprite frame = 3 logic frames), and the sprite frame of every hitbox is authored to match (§11.3).
+Parameter
+Value
+Damage
+18, type MELEE, 4-way (horizontal, up, down, air)
+Timeline
+startup 3 f (sprite frame S1, f1–f3) -> active 3 f (S2, f4–f6) -> recovery 6 f (S3–S4, f7–f12); full cycle 12 f = 0.40 s
+Cancels
+Dodge or guard from recovery (S3–S4); never from startup or active
+Reach
+48 px (1.5 tiles) from the collision box in the slash direction; the up-slash hitbox extends 48 px above the top of the collision box (this figure is load-bearing for boss head reach, §10.3/§10.4, and is checked by the frame-alignment audit, AC36)
+Sustained DPS
+45 (18 / 0.40 s) with full mobility, zero resource, zero commitment
+Poise damage
+1x
+
+The tap/hold contract:
+Tap — LMB / X press swings the Hard Light Sword immediately, on the press frame, with zero added latency: the common action never waits on a hold timer.
+Hold threshold (the point of no return) — 9 f (0.30 s, three sprite frames). If the button is still down at f9, the heavy commitment begins on the next sprite-frame boundary and the swing's remaining recovery is absorbed into it. 9 f is deliberately generous: deliberate taps run 100-150 ms, and at a 30 Hz sample grid a 150 ms tap occupies at most 5 held frames (167 ms) — over 130 ms clear of the threshold. Ordinary taps can never trip a heavy by accident (R18).
+Hold — the strike executes automatically at the end of the wind-up; no further input is needed. Holding past the threshold is the commitment.
+No abort. Once the commitment begins, releasing the attack button does nothing: no input cancels a heavy attack, at any point, from the first wind-up frame to the end of recovery.
+Uninterruptible. Nothing external interrupts a heavy commitment. The player still takes damage from hits that land (and receives the normal 22 f of i-frames afterwards), but damage does not flinch, cancel, stagger, stun, or knock back the player; guard-break staggers, stun effects, and movement overrides (a harpoon's pull) are ignored, and a harpoon that connects deals its hit damage on contact without the pull. Because no knockback applies, the Wall-Slam Bonus cannot trigger. In Overtime a heavy commitment is an all-in: any damage taken still ends the run (§5.1).
+From the air — heavy weapons are ground-only, but the hold persists: an air press swings the air melee, and if the button is still held on the first grounded frame, the commitment starts there. Jump in, plant, swing.
+Before the armory (loadout.heavy_weapon == WEAPON.NONE): holding does nothing beyond the normal sword swing.
+Common rules (the cost of the damage):
+Locked in: from the first wind-up frame through the end of recovery the player is rooted (hsp forced to 0) and every input is ignored — dodge, guard, jump, movement, sword taps, and the attack button itself. Inputs are not buffered, except presses in the final 2 frames of recovery (§4.3). Because nothing can cancel or interrupt it, the locked-in time is exactly wind-up + swing/recovery.
+Ground-only; horizontal, in the facing direction; no 4-way use.
+All strikes are type MELEE (blocked by the Heavy Cyborg's shield, §6.2 — dodge pass-through, grenades, and Phase Slash are the shield answers); they deal multiplied poise damage.
+The chain deals sword 18 + the heavy's damage — the swing that opens the commitment is a real hit (balance flag R16: if the chain overperforms in playtests, tuning.json folds the opening swing's damage into the heavy rather than re-spec'ing the input).
+Hit shape and reach come from the weapon's animation. Hitbox rectangles are authored per sprite frame (§11.3) and are not specified in tiles here. Hit caps are gameplay rules: the greatsword hits every target in its arc, the spear pierces up to 2 targets, the mace's overhead strikes its target and spawns a damage-free ground wave.
+The three weapons (frame counts are 30 fps integers and whole sprite frames; seconds in parentheses). Speed order is greatsword, then spear, then mace; the mace is the heaviest:
+
+
+Greatsword
+Spear
+Mace
+Damage
+40
+35
+60
+Wind-up (after the 9 f threshold)
+12 f (0.40 s)
+15 f (0.50 s)
+21 f (0.70 s)
+Swing + recovery
+12 f (0.40 s)
+15 f (0.50 s)
+18 f (0.60 s)
+Locked-in time (wind-up start -> recovery end, no cancel)
+24 f (0.80 s)
+30 f (1.00 s)
+39 f (1.30 s)
+Press-to-strike (threshold + wind-up)
+21 f (0.70 s)
+24 f (0.80 s)
+30 f (1.00 s)
+Press-to-end (full cycle)
+33 f (1.10 s)
+39 f (1.30 s)
+48 f (1.60 s)
+Hit shape
+Authored in the animation; hits all targets in its arc
+Authored in the animation; the longest reach of the three; pierces up to 2 targets
+Authored in the animation; overhead strike plus a damage-free ground wave that stuns
+Poise damage
+2x
+1.5x
+3x
+Identity
+Fastest heavy; best damage for its speed
+Reach and pierce
+Slowest and heaviest; best raw damage; stun wave
+
+Mace shockwave (stun only). The ground wave deals no damage. It stuns every non-boss enemy inside the wave's authored hitbox — the primary target included — for 1.0 s (30 f), followed by 3.0 s (90 f) of stun immunity for that enemy, so a 48 f mace cycle can never stun-lock a target. Bosses are immune. An enemy in the middle of a heavy attack is unaffected (heavy attacks cannot be interrupted, §6.4) and does not start the immunity timer. The wave inherits the strike's MELEE type: a Heavy Cyborg's raised frontal shield blocks it (no stun). It never affects the player.
+Heavy-vs-sword comparison. Sustained damage over the full cycle (hits counted at their landing frame):
+Technique
+Damage per cycle
+Cycle
+Sustained DPS
+Mobility during
+Interruptible
+Resource
+Hard Light Sword (tap)
+18
+0.40 s
+45.0
+Full — walk, dodge, jump throughout
+Yes
+None
+Greatsword chain
+58 (18+40)
+1.10 s
+52.7
+Rooted 0.80 s
+No
+None
+Spear chain
+53 (18+35)
+1.30 s
+40.8
+Rooted 1.00 s
+No
+None
+Mace chain
+78 (18+60)
+1.60 s
+48.8
+Rooted 1.30 s
+No
+None
+
+Damage landed by a given moment after the press (follow-up sword taps included):
+Window
+Sword taps
+Greatsword
+Spear
+Mace
+24 f inclusive (Heavy Cyborg's shield-down window)
+36
+58
+53
+18
+60 f (perfect-parry stun)
+90
+94
+89
+96
+
+Design intent, stated plainly: the greatsword is the fastest heavy and the best damage for its speed (52.7 dps against the sword's 45 and the others' 40.8 and 48.8); the spear gives up damage rate for reach and pierce; the mace is the slowest and heaviest, with the best raw damage and the stun wave. What all three buy with the root is uninterruptibility — nothing flinches the player out of the swing, though hits still hurt — and multiplied poise damage (2x / 1.5x / 3x). In a 60 f parry stun the four options land 89-96, so the parry's reward is the free damage itself, whichever weapon spends it. The wind-up carries a rising audio ramp — the player-side counterpart of the §6.6 telegraph standard — so holding reads as intent, never as input lag.
+
+6. Combat System [PARTIALLY IMPLEMENTED — refactor to the shared pipeline in M1a]
+6.1 Hit pipeline
+All damage flows through one hitbox component. Attackers spawn obj_hitbox with a config struct; nothing applies damage per-object anymore.
+Frame-bound hitboxes. Every animated attack is frame-perfect: hitbox rectangles live in per-frame hitbox data keyed by (sprite, sprite frame), and the hitbox is live exactly while its owner's sprite frame is inside the bound range (§11.3). Non-animated hazards (beams, shockwave rings, grenade blasts) use a plain lifetime in logic frames instead.
+// Animated attack: geometry and lifetime come from the sprite-frame data
+scr_hitbox_bound(owner, {
+    damage:         18,
+    type:           DMG.MELEE,
+    team:           TEAM.PLAYER,
+    kb_x:           220, kb_y: 0,
+    pierces_shield: false,
+    bind:           HB.SWORD_ACTIVE     // (sprite, frames a..b) from hitbox data
+});
+
+
+// Non-animated hazard: free geometry and an explicit lifetime
+scr_hitbox(x, y, w, h, {
+    damage:   30,
+    type:     DMG.EXPLOSIVE,
+    team:     TEAM.ENEMY,
+    lifetime: 6
+});
+Fields: damage, type (enum DMG), team (enum TEAM: PLAYER / ENEMY / BOSS / NEUTRAL), kb_x / kb_y, pierces_shield, bind or lifetime, optional on_hit callback, optional effect (the STUN type applies a stun instead of damage). The hitbox resolves target eligibility from the friendly-fire matrix (§6.3) and shield rules (§6.2). A frozen target (§5.2) takes the incoming damage multiplied by frozen_damage_mult (0.5) and receives no poise damage, stun, or knockback.
+6.2 Damage types & shield rules
+Type
+Sources
+Blocked by Heavy Cyborg frontal shield?
+Blockable by player guard?
+MELEE
+Hard Light Sword, heavy weapons, enemy slashes
+Yes — the shield's actual job
+Yes (parryable)
+ION (enemy-only)
+Ranger bolts, Traefin/Mandaxx shots
+— (n/a: an enemy-only type never strikes an enemy)
+Yes (parryable, reflects)
+BONE (enemy-only)
+Reaper bone toss, crossbones
+— (n/a: enemy-only)
+Yes (parryable)
+EXPLOSIVE
+Photon Grenades, Modal spew
+No — bypasses
+No
+PHASE
+Phase Slash
+No — bypasses
+No
+LASER
+Modal Laser Beam, Dual Laser Sweep
+No — bypasses
+No — dodge-only
+SHOCKWAVE
+stomps, slams
+Yes
+Guard-break (negated + stagger + guard drops)
+HEAVY
+Enemy heavy attacks, boss charge kicks
+Yes
+No — full damage through guard; must be dodged (§5.5)
+HARPOON
+Reaper Scythe Harpoon
+No — bypasses
+No — dodge-only (grab)
+PUNCH
+post-harpoon punch
+No
+No (player is grabbed)
+STUN (player-owned)
+Mace shockwave (zero damage, applies a stun, §5.8)
+Yes — blocked like its MELEE strike (no stun)
+n/a
+
+The Heavy Cyborg's behavior falls out of this table instead of being special-cased per enemy: the frontal shield absorbs 100% of MELEE (sword and heavy weapons alike) and the mace's STUN wave; EXPLOSIVE and PHASE bypass it; the intended melee answer is the dodge's pass-through — roll through the shield to its rear (§5.5). Melee heavies are unblockable and must be dodged; boss kicks hit through guard.
+6.3 Friendly-fire matrix (data, not code)
+Source hits:
+Player
+Regular enemies
+Boss parts
+Player MELEE / PHASE
+—
+Yes
+Yes
+Player EXPLOSIVE (grenade)
+Yes
+Yes
+Yes
+Player STUN (mace shockwave)
+—
+Yes (stun)
+No — bosses are immune
+Enemy ION (ion bolts)
+Yes
+No
+No
+Grenadier EXPLOSIVE
+Yes
+Yes
+No
+Modal spew EXPLOSIVE
+Yes
+Yes (n/a in practice)
+No — Modal is immune to its own spew
+Reaper hazards
+Yes
+—
+No
+
+6.4 Poise, stagger, stun [IMPLEMENTED]
+Every enemy carries a poise meter (values in §7.2). Damage dealt to HP is also dealt to poise — heavy weapons deal multiplied poise damage (§5.8). Poise fully regenerates after 3 s without taking a hit.
+Poise break causes a 1.2 s stagger (flash-white shader pulse — implemented). Heavy attacks are the exception: an enemy heavy attack cannot be interrupted, so a poise break reached during one is deferred and its stagger begins the moment the heavy attack's recovery ends. A frozen enemy takes no poise damage (§5.2).
+Perfect parry (§5.4) causes a 2.0 s stun plus poise reset, regardless of remaining poise.
+The mace shockwave (§5.8) causes a 1.0 s stun followed by 3.0 s of stun immunity for that enemy. Immunity applies only to the mace stun; it does not block parry stuns or poise breaks.
+Bosses have no poise; they stagger only through designed mechanics (wall-slam stun, harpoon miss) which carry their own immunity windows (§10.1).
+6.5 Knockback, i-frames, and continuous hazards
+Standard knockback 220 px/s, decay 1200 px/s². Boss-class knockback (kicks) 520 px/s.
+Player i-frames: 0.73 s (22 f) after any hit. Enemies have no i-frames — poise governs their reaction to pressure.
+Continuous hazards — Modal Laser Beam, Dual Laser Sweep, and any future beam field: damage on contact, re-hit every 0.77 s (23 f) while touching (one frame past the i-frame window so re-hits always land), hard-capped at 2 hits per target per activation. A 4 s beam therefore deals at most 40 to a single player, not more; a full sweep at most 40. Discrete hits (bolts, slams, crossbones) are unaffected and use normal i-frames.
+6.6 Telegraph standard [IMPLEMENTED as a pattern]
+Every hostile attack has a telegraph of at least 0.4 s (12 f): pose change + flash (implemented shader) + audio cue. Per-enemy and per-boss windows are specified in §7.2 and §10.
+Heavy attacks telegraph at least 0.8 s with a double-flash and a distinct audio thump — visibly and audibly different from normal attacks, and colorblind-safe (the cue is count + sound, not hue, §12.3).
+Animation coupling: at the 10 fps gameplay animation clock, a 0.4 s telegraph is exactly 4 sprite frames — telegraph animations must be authored with at least 4 frames (bosses at 20 fps: at least 8). Every telegraph is a whole number of sprite frames; boss telegraphs are an even number of boss frames so they end on a logic-frame boundary (§11.3).
+Telegraphs are not interruptible by player damage (except designed staggers). Heavy attacks are never interruptible — not by damage, poise break, stun, or knockback; a parry cannot touch them (they are unblockable); only a Time Freeze suspends one, and it resumes where it stopped. The designed outcome of a boss move (a wall-miss stun, a harpoon miss) is part of the move, not an interruption.
+6.7 Sympathetic detonation limits
+When an explosive detonates, other explosives inside its blast radius arm with a 3 f delay, then detonate.
+Chain resolution is capped: max 4 detonations per frame (excess deferred to the next frame), max 8 detonations per chain; grenades beyond the cap become visual duds.
+Budget rationale: §16 (performance).
+
+7. Bestiary [IMPLEMENTED — framework + 4 variants; heavy attacks in M1c]
+7.1 Shared framework: obj_enemy_parent [IMPLEMENTED]
+State machine: DORMANT (ambush) -> ALERT -> CHASE -> TELEGRAPH -> ATTACK -> RECOVER -> STAGGERED -> STUNNED (parry) -> DEAD.
+Shared by all variants: poise meter, hit-flash shader, vision cone + 320 px activation (ambush behavior), ledge-aware chase, knockback handling, death FX, drop rolls. Variant behavior and stats are data (§7.2 table + spawn structs), so new variants are configuration, not new code paths.
+M1a migration: existing Step event bodies move into on_step() methods; from then on hostile objects never define Step / Begin Step / End Step / Collision / Alarm events (§11.2). Enemy heavy attacks are added as data-driven attack entries in M1c, not new objects.
+Melee-reachability placement rule (generator, §8.4): the player has no ranged offense, so every enemy must be reachable at sword range. Rangers and Grenadiers are never placed on platforms separated from the main path by a gated gap (needs_boost, needs_sprint_dodge, needs_phase), nor on ledges reachable only by Phase Slash — their platforms must connect to a mandatory-path platform through walk terrain (validator-enforced, AC21).
+7.2 Variant table
+
+
+Standard Cyborg
+Ranger
+Grenadier
+Heavy Cyborg
+Role
+Basic melee
+Ranged kiter
+Fire support
+Shield tank
+HP
+60
+45
+70
+140
+Poise
+40
+30
+45
+80
+Move speed
+140 px/s
+110 px/s
+100 px/s
+80 px/s
+Attack (damage)
+Slash, 15
+Ion bolt, 10
+Grenade, 30
+Shield bash, 20
+Heavy attack
+Overhead, 25 — HEAVY, unblockable
+—
+—
+Crushing slam, 30 — HEAVY, unblockable
+Heavy wind-up
+0.8 s (24 f), double-flash
+—
+—
+0.9 s (27 f), double-flash
+Preferred range
+melee (48 px)
+240-420 px
+200-380 px lob
+melee (56 px)
+Telegraph (normal)
+0.5 s
+0.6 s
+0.7 s
+0.8 s
+Attack cooldown
+1.2 s
+2.0 s
+4.0 s
+2.5 s
+Special
+—
+strafes to keep distance
+friendly fire (§6.3); 25% grenade drop
+frontal shield blocks MELEE and the mace's STUN wave (§6.2); 0.8 s vulnerable window while attacking; turn lockout (below)
+
+Behavioral notes:
+Standard Cyborg: closes distance directly; the tutorial enemy for telegraph-then-punish. Its heavy overhead is the dodge tutorial (§8.1, L3).
+Heavy attacks are uninterruptible. From the first telegraph frame of an enemy heavy attack through its recovery, poise damage still accrues but a poise break is deferred until recovery ends; stun effects (including the mace shockwave) do nothing and do not start the stun-immunity timer; the attacker takes damage normally. Time Freeze suspends the attack and resumes it.
+Heavy-attack trigger (anti-turtle): melee variants use their heavy attack when the player has blocked (non-parry) their last 2 attacks, or after the player stays in melee range for 3 s — holding guard is answered, not ignored. Parries do not increment the trigger: a parry already stuns the attacker 2.0 s and resets its aggression timer; counting parries would punish exactly the skill the system exists to reward (§5.4).
+Ranger: fires linear ion bolts; backpedals when the player closes inside 240 px. Placement obeys the melee-reachability rule (§7.1).
+Grenadier: lobs physics grenades; its friendly fire is a player exploit vector (bait throws into other enemies). Same placement rule.
+Heavy Cyborg: advances behind a frontal shield that absorbs 100% of MELEE damage; lowers the shield to attack (0.8 s vulnerability); EXPLOSIVE and PHASE bypass (§6.2). The dodge's pass-through rolls straight through the shield to its rear (§5.5). Turn lockout: the Heavy cannot change facing during TELEGRAPH, ATTACK, or RECOVER, and in ALERT / CHASE it needs 0.5 s (15 f) to turn through 180°. A player who rolls through it therefore lands behind a shield that is facing the wrong way for at least that long.
+
+8. World Structure & Progression
+8.1 Campaign & level list
+Act 1  The Desolate Desert     L1-L4 (generated)   ->  L5  Traefin (arena)
+Act 2  The Alien Carrier       L6-L9 (generated)   ->  L10 Mandaxx (arena, escapes)
+Act 3  The Alien Homeworld     L11-L14 (generated) ->  L15 Modal (arena, final)
+                                 +-- hidden: the Afterlife state machine (section 9) runs across all acts
+
+Level
+Name
+Biome
+Teaches / unlocks
+L1
+Homecoming
+Desert
+Movement, sword, dodge-launched sprint and ground + air dodge basics (first needs_boost gaps), first ambushes
+L2
+Sunbaked Ruins
+Desert
+Sprint + air dodge gaps at 12 tiles (set-piece chunk, §8.4); Grenadier intro; Photon Grenade unlocked at exit
+L3
+The Buried Highway
+Desert (underground band)
+Heavy Cyborg intro + the unblockable heavy-attack dodge lesson (set-piece chunk); underground dips
+L4
+Mesa Verge
+Desert
+Full enemy mix, verticality, combat under stamina pressure — guard/sprint/dodge economy with the full roster
+L5
+Traefin's Dunes
+Arena
+Act 1 boss
+L6
+Hull Breach
+Carrier
+Heavy weapon armory choice + hold-to-heavy practice wall + Phase Slash unlocked at entry (set-piece chunk)
+L7
+The Spine
+Carrier
+First sustained heavy-weapon combat vs. carrier elites; vertical chunk focus; Time Freeze unlocked at exit (set-piece chunk)
+L8
+Detention Ring
+Carrier
+Behind the Carrier Key bulkhead (§14); elite enemy mixes
+L9
+Reactor Span
+Carrier
+Hazard timing, freeze puzzles
+L10
+Mandaxx's Bridge
+Arena
+Act 2 boss (escapes at 20% HP)
+L11
+Ashfall Basin
+Homeworld
+Stamina-management traversals (long sprint corridors with threats)
+L12
+The Choir Deeps
+Homeworld
+Combined traversal mastery
+L13
+Skybreak Ridge
+Homeworld
+Hazard gauntlets
+L14
+The Pale Court
+Homeworld
+Full kit mastery
+L15
+Modal
+Arena
+Final boss
+
+Heavy-weapon practice deliberately starts at L6 — the armory is L6's entry set-piece, so no earlier level can reference a weapon the player does not own. "Two levels back" in the Afterlife regression (§9.6) operates on this list; boss arenas count as levels.
+8.2 Checkpoints & saves
+See §4.4. Checkpoint spacing: one at level entry plus every 5th main-path chunk; about 3-4 per generated level. Boss arenas contain no checkpoints — an Overtime entered there completes only on boss kill or arena clear (§5.1, §10.5).
+8.3 Biomes
+Three biomes (desert, carrier, homeworld), each with its own tileset, enemy skin variants (same stats unless the tuning data says otherwise), parallax set, and ambience. Biome 2/3 tilesets are not yet authored — see risk R2 (§18). The template schema (§8.4) stores tileset_id and tile roles so Act 2/3 swap tilesets without migrating slot data.
+8.4 Level generation pipeline [IN PROGRESS]
+Architecture: art travels on tile layers; logic travels on instances. Each chunk is authored once in the workshop, exported as data, and stamped by the generator.
+Constants. TILE_SIZE 32. Chunk grid 20 x 23 tiles (640 x 736 px — exactly one screen width at the 640 x 360 base). Workshop slot pitch 672 x 768 px (1-tile gutter). Generator grid GEN_GRID 16 x 8 chunks. GROUND_LINE 4: rows 1-3 are the surface band, rows 4-6 the underground band; chunk biome above / below is hard-separated by row and never mixed.
+Chunk anatomy (authored objects):
+Object
+Purpose
+obj_tpl_header
+Name, biome, tags, door mask (L/R/U/D connection contract)
+obj_tpl_marker
+Enemy spawn points, entrance, loot, set-piece anchors
+obj_tpl_floor
+Left/right edge floor heights (default row 21) — how chunks weld to neighbors
+obj_solid_tile
+Collision (parent obj_solid); runs of tiles merge into one instance via image_xscale
+
+Door-mask contract. The mask is the connection contract between adjacent chunks. L/R doors are externalized as continuous floor across the seam; an unconnected edge renders as a cliff (fall = pit death per §4.4). U/D doors connect the surface and underground bands. Phase Slash cannot cross solid terrain (§5.3), so seams and arena bounds need no special barrier objects.
+Traversal envelope — derived, then enforced. The generator obeys the physics envelope (§4.1) with coyote time and the floor bonus counted as designed forgiveness, and with a 16 px safety margin on both sides of every band. The bands below are a derivation snapshot at the baseline constants; the validator does not read this table — it simulates the real jump arcs from tuning.json (floor hitbox, coyote, dodge insertion, Phase Slash chain) and asserts tags against the simulation, so a physics tweak re-derives the envelope instead of silently invalidating it (Appendix B).
+Tag semantics. A tag names the tools a gap requires, and the validator checks it in both directions:
+Tag
+Meaning
+needs_boost
+Crossable by walk-jump + air dodge or by sprint-jump alone; not crossable by a walk-jump
+needs_sprint_dodge
+Requires sprint-jump and air dodge together; walk + dodge and sprint alone both fall short
+needs_phase
+Requires a Phase Slash on top of jump + air dodge; sprint + dodge falls short
+
+Band rule. For a tag with allowed chains A and disallowed chains D, a gap of n tiles is legal when 32n > max reach(D) + b + 16 and 32n ≤ min reach(A) + b − 16, where b = floor_w − 2 × floor_overlap.
+Band
+Rule at the baseline constants (b = 22 px)
+Untagged main path
+Gap <= 4 tiles (a walk-jump with floor bonus crosses 6, so 4 leaves a wide comfort margin)
+5-6 tiles
+Dead tiles — never generated (6 sits inside walk reach, 5 is reserved)
+7-8 tiles (224-256 px)
+needs_boost, any level — walk + coyote + bonus reaches 205 px; sprint-jump alone (the weakest allowed chain) reaches 274 px
+9-10 tiles
+Dead tiles — a gap here needs the dodge but not sprint, and sprint alone (274 px) and walk + dodge (336 px) sit too close for a 16 px margin on both sides: 9 tiles (288 px) is only 14 px past sprint alone, 10 tiles (320 px) is only 16 px inside walk + dodge with no slack
+11-12 tiles (352-384 px)
+needs_sprint_dodge, levels >= L2 — walk + dodge tops out at 336 px; sprint + dodge reaches 413 px
+13 tiles
+Dead tile — sprint + dodge (413 px) falls only 3 px short of 13 tiles (416 px), well inside the 16 px margin
+14 tiles (448 px)
+needs_phase, levels >= L6 — sprint + dodge tops out at 413 px; walk + dodge + Phase Slash reaches 496 px
+>= 15 tiles
+Forbidden — reserved for pit boundaries
+Climb per chunk seam
+<= 3 tiles (jump apex). No ability raises climb (the air dodge is horizontal-only and never gains height) — greater vertical navigation uses authored platform stacks inside U/D connection chunks (stepped footholds the generator stamps with the chunk, so vertical range is unlimited while every individual jump stays within the envelope)
+Drops
+Unbounded within a chunk (max fall speed 900 px/s is safe)
+Treasure spurs
+Jump-reachable from both directions; depth <= 3 tiles below the main floor
+Softlock rule
+Every dip and spur has at least two exits: forward and back
+
+Resource-safety rules for gated gaps. A resource-starved or mistimed attempt must never become a pit death — pit deaths bypass Overtime and feed the Reaper counter (§5.1):
+Rule
+Specification
+Recovery platform
+Every gated gap's pit (needs_boost, needs_sprint_dodge, needs_phase) contains a 2-tile recovery platform placed on the failure fall arc, plus a stepped climb-back route (walk/climb only, no gated moves) to the takeoff ledge. A failed attempt is a climb back and a retry, never a death. Pits of 15 tiles or more and authored hazards remain lethal
+Energy spacing
+Consecutive needs_phase gaps are separated by >= 2 full chunks (1280 px, about 5.3 s at walk speed) of gap-free main path — more than the 4.0 s re-bank of one Phase Slash (40 energy at 10/s), so the player always arrives at the next gate able to pay for it
+Stamina fairness
+needs_boost gaps assume 20 stamina (dodge) or 15 (sprint). needs_sprint_dodge gaps assume a dodge-launched sprint start plus an air dodge: 40 stamina plus the run-up drain in the worst case. The recovery platform catches the empty-tank case
+
+Camera rules. Horizontal lookahead 192 px, eased toward movement direction / facing (lerp 0.10 per frame). Justification: the widest legal gap (14 tiles, 448 px) plus 64 px of landing platform needs 512 px of view ahead of the player; the 320 px half-view plus 192 px of lookahead provides exactly that, so the landing of the longest legal traversal is always on screen (the view behind the player shrinks to 128 px, which is enough because the level scrolls rightward). Vertical: the camera centers on the player with a small 48 px look-down bias while falling fast; boss arenas override with a static lock (§10.5).
+The validator. A validator script asserts the full envelope over 100 seeded generations — not by re-reading the band table, but by simulating each main-path gap with the live tuning.json physics: floor hitbox, coyote window, technique chains (the chain enumeration and pseudocode are Appendix B). It additionally asserts: recovery platforms exist and their climb-back routes flood-fill to the takeoff ledge using only walk/climb moves; energy spacing between needs_phase gaps; the melee-reachability placement rule for Rangers and Grenadiers (§7.1); climb caps and U/D platform stacks; door-mask welding; marker sanity; and that no gap lands on a dead tile. It is part of AC21 and runs in the M1c exit gate.
+Guaranteed set-piece injection. Random generation will not reliably place teaching moments, so tagged set-piece chunks are force-injected at fixed positions:
+Level
+Position
+Injected chunk
+Purpose
+L2
+main-path chunk 2
+sp_sprint_gap (tag setpiece:sprint_gap)
+Teaches the dodge-launched sprint-jump — the gap is authored at a flat 12 tiles (384 px) so sprint + air dodge is genuinely required (walk + dodge reaches 336 px, sprint + dodge 413 px: 48 px clear of the first and 29 px inside the second). Authored with a recovery platform under the gap so a failed attempt is a climb back, not an instakill
+L3
+main-path chunk 3
+sp_heavy_intro (flat arena + guaranteed Heavy marker + a Standard Cyborg)
+Teaches the shield rule and the unblockable-heavy dodge lesson
+L6
+entry chunk
+sp_armory_phase
+Heavy weapon choice + hold-to-heavy practice wall + Phase Slash pickup
+L7
+exit chunk
+sp_freeze_unlock
+Time Freeze pickup + hazard corridor
+L11
+main-path chunk 2
+sp_stamina_run
+Long sprint corridor with intermittent threats (stamina management)
+
+Generator behavior. Strong rightward bias on the main path; up to 2 probabilistic underground dips per level (mesa/rock fill forms the surface bulge above a dip); single-tile treasure spurs off the main path.
+Determinism & RNG isolation. GML exposes one global RNG stream, so the game does not use random() in generator or spawner code at all. Two struct-based PRNGs (mulberry32) are created at boot:
+gen_rng = scr_prng_new(level_seed);  // chunk selection, dips, spurs — deterministic per level
+fx_rng  = scr_prng_new(run_seed);    // drops, spew intervals, cosmetic variance
+level_seed is derived from run_seed + level_index + an entry counter, rolled on level transition (entering from another level, after regression, New Game) and persisted — checkpoint respawns and save/reload reuse it, so a saved level always regenerates identically (AC23 depends on this).
+Workflow.
+rm_workshop (16 slots, 8x2)  --F4 runtime export-->  templates.json (working_directory)
+        |                                                     |
+   author chunks                                      register as Included File
+   (header/marker/                                     (required for packaged builds)
+    floor/solid objects)                                        |
+                                                      rm_tpltest preview
+                                              (red-box collision overlay for QA)
+                                                               |
+                                                     rm_generated assembly
+Template schema — lands before slot filling completes. templates.json is being authored now; storing raw tile indices would force a migration of all 16 slots when Act 2 arrives. The schema therefore carries a version, a tileset reference, and tile roles:
+{
+  "schema_version": 1,
+  "chunks": [{
+    "name": "dune_combat_lr", "biome": "above", "tileset_id": "ts_desert_v1",
+    "tags": ["combat", "setpiece:sprint_gap"],
+    "doors": { "L": "floor", "R": "floor", "U": "none", "D": "none" },
+    "floors": { "left": 21, "right": 21 },
+    "tiles": [ { "role": "solid", "x": 0, "y": 20, "w": 20, "h": 3 } ],
+    "markers": [ { "type": "enemy", "kind": "ranger", "x": 10, "y": 18 } ]
+  }]
+}
+The loader validates schema_version and refuses to run on an unknown version; tile roles resolve to indices through the per-biome tileset table, so swapping to ts_carrier_v1 touches the mapping, not the slots.
+Engine compatibility rules (learned the hard way — keep in the PRD):
+IDE scripts cannot run at authoring time; template export is a runtime action (F4 run of the workshop). Export writes directly to working_directory (the native save dialog forces a new filename otherwise).
+templates.json must be registered as an Included File or packaged builds see an empty generator.
+The runtime tile layer (Tiles_runtime) must be a true tile layer, not an instance layer — tilemap_set silently fails on instance layers.
+This runtime has no tilemap_fill; scr_tilemap_fill is the compat shim. Use it.
+Sprite lookups on objects go through object_get_sprite() (asset level), not per-instance sprite_index access patterns that crashed before.
+Current status & near-term. The pipeline is functional end to end with a single chunk; a copy-fill debug fallback (reuse any template for any requested mask) is active so generation can be tested while the 16 slots are populated. Slot-filling target: mask coverage for R-entry, L-exit, LR combat, LR connector, LRU, LU, RD, LRD, and U/D treasure chunks — all biome above first — after the schema upgrade lands and re-tagged to the current envelope (needs_boost / needs_sprint_dodge / needs_phase, dead tiles excluded).
+Deferred by decision: multi-tileset support beyond the tileset_id mapping and a tpl_props decoration channel. Revisit in M2 (risk R2).
+
+9. The Afterlife System — State Machine Specification
+9.1 Summary
+When the player suffers a True Death (§5.1), there is no Game Over screen. The player is seamlessly loaded into the Afterlife room, where a hidden state machine (stored in global.run.reaper_state) tracks the Grim Reaper's escalating patience.
+9.2 State diagram
+REAPER_LURKING
+  |  True Death #1 -> dialogue D1, respawn at last checkpoint
+  v
+REAPER_INTRODUCED
+  |  True Death #2 -> dialogue D2, respawn
+  v
+REAPER_ANNOYED
+  |  True Death #3 -> dialogue D3 (final line) -> Reaper boss spawns immediately
+  v
+REAPER_FIGHT_A1 --(Reaper defeated)-------------------------> AFTERLIFE_CLOSED
+  |  player dies in arena -> taunt line, respawn inside arena
+  v
+REAPER_FIGHT_A2 --(Reaper defeated)-------------------------> AFTERLIFE_CLOSED
+  |  player dies in arena -> regress 2 levels, set permanent_boss_mode
+  v
+REAPER_PERMANENT --(Echo Reaper defeated)-------------------> AFTERLIFE_CLOSED
+  |  every True Death -> Echo Reaper fight (1 attempt, no dialogue)
+  +--(player dies in Echo fight)--> respawn at current checkpoint; stay in PERMANENT
+
+
+AFTERLIFE_CLOSED: every future death -> instant checkpoint restart; no Afterlife room.
+9.3 Transition table
+#
+Current state
+Event
+Next state
+Side effects
+T1
+LURKING
+True Death
+INTRODUCED
+deaths = 1; Afterlife room; dialogue D1; respawn at last checkpoint
+T2
+INTRODUCED
+True Death
+ANNOYED
+deaths = 2; dialogue D2; respawn
+T3
+ANNOYED
+True Death
+FIGHT_A1
+deaths = 3; dialogue D3; boss spawns; attempts = 1
+T4
+FIGHT_A1
+player dies in arena
+FIGHT_A2
+attempts = 2; single taunt line; respawn inside arena
+T5
+FIGHT_A1
+Reaper defeated
+CLOSED
+reward (§9.7); Afterlife permanently disabled; respawn at the checkpoint of the level the player originally died on
+T6
+FIGHT_A2
+player dies in arena
+PERMANENT
+permanent_boss_mode = true; regression of 2 levels (§9.6); extract to campaign
+T7
+FIGHT_A2
+Reaper defeated
+CLOSED
+as T5
+T8
+PERMANENT
+True Death
+PERMANENT
+Echo Reaper fight: 1 attempt, no dialogue (§9.4)
+T9
+PERMANENT
+player dies in Echo fight
+PERMANENT
+respawn at current checkpoint; no further regression
+T10
+PERMANENT
+Echo Reaper defeated
+CLOSED
+as T5
+T11
+CLOSED
+True Death
+CLOSED
+instant checkpoint restart
+T12
+any
+Overtime State completed
+unchanged
+HP per rules O1-O3; deaths unchanged
+T13
+FIGHT_A1 / FIGHT_A2
+quit & reload during fight
+same
+fight re-arms at the same attempt number (state persisted)
+
+Design closure notes: death 4+ before the boss is beaten cannot occur (death 3 always enters the block); a death mid-block advances the attempt counter (T4/T6); there is a single taunt line between attempts, not a full dialogue; quit-mid-fight is covered by T13.
+9.4 Permanent mode & the Echo Reaper
+In REAPER_PERMANENT, every True Death skips dialogue and starts the Echo Reaper: Phase 1 kit only, 70% HP (560), single attempt (T8/T9). A plainly labeled retreat door is present in the arena; using it respawns the player at their checkpoint without penalty (the Reaper comments). This prevents the punishment spiral of "a struggling player must beat a hard optional boss on every death forever" while keeping the Reaper an unavoidable presence.
+9.5 Death-counter semantics
+global.run.deaths increments only on True Death (Overtime State failure or environmental instakill).
+Entering Overtime State does not count. Completing Overtime State does not count (T12).
+Dying inside any Afterlife fight consumes an attempt but never increments deaths — the counter tracks campaign deaths that drive the Reaper's escalation; the fight tracks its own attempts.
+Persistence: part of global.run, saved and loaded with the run (§11.5). Persists across save/quit. Reset only by New Game.
+9.6 Regression definition
+level_index = max(1, level_index - 2), computed on the §8.1 list (boss arenas count).
+The player keeps all abilities, upgrades, items, and heavy weapon choice — regression costs time, not power (deliberate).
+The target level reloads at its entry checkpoint; its enemies and pickups reset per normal level-re-entry rules.
+Boss-arena targets: if the regressed-to level is a boss arena whose boss is already defeated, the arena is entered in its cleared state — the boss does not re-fight; a transit corridor leads through to the exit. Unlocked progression doors (the Carrier Key bulkhead at L8) never re-lock.
+9.7 Reward & acknowledgement
+Victory (T5/T7/T10) grants the Reaper's Toll: +25 max HP (100 to 125), the Soul Scythe cosmetic reskin for the Hard Light Sword (found embedded where the Reaper fell), Afterlife permanently closed, and the run's end screen gains the line "Deaths cheated: N". A hidden boss with no acknowledgement is a missed feature — this closes that gap.
+9.8 Hidden-system risk (accepted, mitigated)
+Design risk, called out explicitly: players do not know the rules (2-attempt block, regression, permanent mode). Some will read regression as a punishing bug. This opacity is intentional — it is the Afterlife's identity — and the dialogue teaches the rules at the moments they bind:
+D1 establishes that deaths are being counted ("I'll be counting").
+D2 warns that the third time is different.
+The mid-block taunt states the 2-attempt rule verbatim — "Once more. There is no third." — so no player can finish the block without having been told it exists.
+The post-regression line states the new permanent regime verbatim.
+Further mitigations: the retreat door in permanent mode; assist options (§12.3); patch-note transparency outside the game.
+Sample dialogue (final lines, subject to editing):
+D1: "Everyone gets one free pass. Enjoy the walk back. I'll be counting."
+D2: "Again. You are spending my patience — and it is the last currency you want to spend. The third time will not be a conversation."
+D3: "Third time. No more pleasantries." (transforms)
+Taunt between attempts: "Once more. There is no third."
+Post-regression (permanent mode): "You had your two chances. From now on, every fall answers to me."
+On victory: "...Fine. Keep your hours." (the scythe stays behind)
+On retreat: "Coward's exit. It will be here when you fall again."
+9.9 Persistence & edge cases
+State is written at every transition (T1-T11); see T13 for quit-mid-fight.
+Quitting during a dialogue: on reload the dialogue is skipped and replaced by a one-line reminder; the state has already advanced.
+Afterlife fights pause deaths but consume attempts; the Overtime State cannot trigger inside the Afterlife (§5.1).
+New Game calls scr_run_reset() — all Afterlife state returns to LURKING.
+
+10. Boss Specifications
+10.0 Shared framework: obj_boss_parent [IMPLEMENTED]
+All bosses inherit obj_boss_parent, which owns: the HP pool and HUD bar driver, intro/transition states, the attack scheduler hook, stagger/stun handling with immunity timers, arena camera locking, the death sequence, and drops. A difficulty scalar supports the Echo Reaper's 70% reuse (§9.4) and the M1c stand-in Reaper reskin (§15.2). This reuse is the project's main scope-control device: Mandaxx and the Reaper's Phase 1 are configuration over this framework, not new engines. Boss animations run at 20 fps (one boss frame = 1.5 logic frames); every boss telegraph and hit window is authored as an even number of boss frames — a multiple of 3 logic frames — so it starts and ends on a logic-frame boundary (§11.3). The M1a audit pass retunes existing Traefin sprites to the clock and checks this.
+10.1 Act 1 Boss — Traefin [IMPLEMENTED — numbers are the M1a tuning pass]
+Agile hybrid duelist; the vertical-slice boss. Arena: hand-built desert arena with wall-slam side walls, 20 x 11 tiles (640 x 352 px) — one screen at the 640 x 360 base (§10.5). Defeating Traefin unlocks the heavy weapon armory at L6's entry (§5.8, §14).
+Parameter
+Value
+HP
+600
+Melee slash
+18; telegraph 0.5 s (15 f = 10 boss frames)
+Ion bolts
+12; 640 px/s (enemy ION — Traefin keeps its own ranged weapon; swept collision, §11.1)
+Charge trigger
+horizontal distance > 380 px sustained 1.5 s — about 60% of the arena
+Charge speed
+520 px/s (swept collision); no mid-charge tracking
+Charge kick (on hit)
+25, type HEAVY (unblockable) + 520 px/s knockback; kicking the player into a wall adds 20 (Wall-Slam Bonus)
+Charge miss (wall)
+40 self-damage + 3.0 s stun
+Post-stun immunity
+10 s — the stun cannot be chained
+
+States: INTRO -> CHASE <-> SLASH / SHOOT -> CHARGE -> (kick | wall-miss) -> STUN -> CHARGE ...
+10.2 Act 2 Boss — Mandaxx [PLANNED]
+An upgraded, faster iteration of the Traefin framework:
+Parameter
+Value (vs. Traefin)
+HP
+900 (1.5x)
+Movement
+1.25x speed (charge about 650 px/s, swept collision)
+Melee slash
+22
+3-Slash Combo
+3 x 16, advancing 3 x 48 px; telegraph 0.5 s (15 f = 10 boss frames)
+Ground Stomp
+20, type SHOCKWAVE (guard-break, §6.2); dual-directional shockwave at 320 px/s, jumpable; telegraph 0.7 s
+Sword Boomerang
+26; outbound 520 px/s, return 400 px/s; telegraph 0.8 s; outbound flight uses swept collision (§11.1)
+Charge kick
+25 + wall bonus, type HEAVY (unblockable)
+Wall-slam stun
+2.0 s (stun windows shrink across bosses)
+
+Boomerang failsafes — caps derived from the arena, not fixed guesses. In the 20-tile (640 px) arena, a legitimate end-to-end throw takes about 1.23 s out and 1.6 s back (2.83 s total). The caps are therefore:
+flight_cap = arena_width / outbound_speed + 0.5 s = 1.73 s, authored as 1.75 s (rounded to a clean timer value): the sword force-returns after 1.75 s of flight even if it never touched a wall (a hit wall always returns it sooner).
+3.5 s total: the sword teleports back to Mandaxx's hand, and the boss stops waiting in its throw pose at the 1.75 s mark regardless — no soft-lock state exists. If the arena is ever resized, the caps re-derive from the formula.
+Escape. At 20% HP or below, Mandaxx disengages via a 10 s scripted sequence (smoke, leap off-screen, drops the Carrier Key, radio stinger setting up Act 3). Skippable after first view. The fight ends in escape, not death — the reward is the key, not a corpse. HP clamps at 1 the moment the escape threshold is crossed: an overkill hit that would drop Mandaxx below 1 instead triggers the escape at that instant. The escape sequence completing counts as arena cleared for Overtime completion (§5.1) — a player who entered Overtime during this fight survives by forcing the escape.
+10.3 Act 3 Final Boss — Modal [PLANNED]
+A massive four-part entity: Head, Body, Left Hand, Right Hand — four separate targetable instances. Arena: 18 x 11 tiles (576 x 352 px) — fully visible in one screen, hands and sweeps included (§10.5).
+Instance roles & HP linking: a single shared HP pool of 2600; damage to any part counts toward the pool and toward the 50% phase threshold. The Body is "the boss" — it owns the pool, the HUD bar, the Figure-8 pathing, and the attack scheduler. Hands additionally carry 350 local HP: depleting one disables that hand for 12 s (limp, no attacks) without removing shared HP. Modal dies when the shared pool reaches 0, regardless of which part took the finishing blow.
+Concurrency — formal mutex/lock table (the scheduler grants locks; limbs request attacks):
+Attack
+Limbs used
+Category
+While active, blocks
+Vertical / Horizontal Slam
+1 hand
+slam
+— (in P2)
+Directed Ranged (Bullet Hail or Laser)
+1 hand
+ranged
+both-hands ranged; Grenade Spew
+Dual Laser Sweep
+both hands
+sweep
+all other attacks (globally exclusive)
+Grenade Spew
+head
+spew
+all ranged attacks (either hand)
+
+Phase 1 (100-50%): the scheduler is globally exclusive — one routine at a time across all limbs.
+Phase 2 (below 50%): concurrency is enabled per the table: slams may overlap anything except the sweep; two ranged strikes never overlap; spew never overlaps ranged.
+Attack numbers (pacing-fixed):
+Attack
+Spec
+Directed Ranged — Bullet Hail
+15-40 sequential bolts, 10 dmg, 480 px/s (swept collision), 6/s; wind-up 2.0 s, angle locks in the last 0.5 s
+Directed Ranged — Laser Beam
+4 s beam, 20 dmg on contact, 0.5 s warning line; continuous-damage cap applies (§6.5): max 2 hits per activation
+Dual Laser Sweep
+8 s total, redesigned around geometry (below)
+V/H Slam
+20 dmg; pre-slam pause is a parameter: P1 1.5-2.5 s, P2 0.8-1.5 s
+Grenade Spew
+3-5 grenades, 30 dmg, randomized intervals; respects the global 64-projectile cap
+
+Dual Laser Sweep — geometry-first design. Beams cannot be jumped; the redesign guarantees safe lanes by geometry in the 576 px arena:
+Both hands lock to the ceiling and emit two vertical beams (24 px wide), starting touching each other at the arena's center line.
+0-2.8 s — sweep out: the beams separate at 80 px/s each (center 288 px to 64 px-from-wall = 224 px of travel = 2.80 s), halting 2 tiles (64 px) from each wall.
+2.8-5.2 s — hold: the beams sit near the walls; the entire center is safe.
+5.2-8.0 s — sweep back: the beams return to center and the sweep ends (2.8 + 2.4 + 2.8 = 8.0 s).
+Safe lanes, guaranteed: at least 64 px at both walls at all times, plus the whole center once the beams separate (the gap opens at 160 px/s). Crossing through a beam is possible with Phase Slash i-frames (6 f covers the 24 px transit) but never required.
+Damage: continuous hazard — max 2 hits per activation per §6.5.
+Counterattack window: both hands are committed to the ceiling for the full 8 s, so the Body and Head are the targets (stated explicitly).
+Figure-8 integrity & Head reachability — pinned numbers. The Body's path amplitude is clamped to stay at least 2 tiles above the highest platform — it never intersects terrain. The hands ignore terrain by design: they are background-layer threats with their own hitboxes; the player cannot body-block or be pushed by them, and their tracking is telegraphed by the pre-slam pause. The Head hangs beneath the Body's forward mass (a dangling weak point). Reach is restored by geometry, not player tech: the Figure-8's lower lobe dips to 3.5 tiles (112 px) above the highest platform at least once per loop (about 12 s), and two standable bone outcrops (1.5 tiles high, authored into the arena under the two lower-lobe points — also listed in the §10.5 arena table) raise the effective floor beneath them.
+Reach check, with its reference points defined (§4.1). The target is the bottom edge of the Head's hitbox, measured from the surface the player stands on (the outcrop top). The player's reach is the origin's jump rise (98 px) plus the up-slash hitbox, which extends 48 px above the top of the collision box (§5.8). The check is deliberately conservative: it ignores the height of the collision box itself, which adds to the real reach. Conservative reach 98 + 48 = 146 px against a 112 px target — a 34 px margin (about one tile), larger in practice by the box height. The frame-alignment audit verifies that the authored up-slash hitbox extends the full 48 px, and AC22 enforces the 15 s window.
+10.4 Hidden Optional Boss — The Grim Reaper [PLANNED]
+A two-phase fight built on distinct object swaps.
+Phase 1 — Melee/Agility Form (reuses the Mandaxx framework): HP 800. Arena 20 x 11 tiles (§10.5).
+Move
+Spec
+Scythe slash / 3-slash combo
+20 / 3 x 14 (sweeping scythe replaces sword assets)
+Bone Toss
+12, type BONE (parryable, §6.2); spinning bones with returning boomerang physics, thrown in pairs
+Erupting Bone Wave
+18; sequential floor spikes (5 spikes at 240 px/s) replacing the stomp
+Scythe Harpoon
+1.8 s spin wind-up, then 700 px/s launch (swept collision, §11.1), type HARPOON (unguardable). On hit: latches, overrides player movement, pulls them in, 35 dmg punch (type PUNCH); if the player is in a heavy weapon commitment the pull is ignored (§5.8) and the 35 damage lands on contact before the harpoon reels back. On miss: reels back empty into a 2.5 s penalty stun
+
+Phase 2 — Modular Giant Form, triggered instantly below 50% HP (400). Arena contracts to 16 x 10 tiles (512 x 320 px) (a room-collapse transition — both sizes fit one screen, §10.5). Transition specification: a 1.5 s cinematic — screen flash, all in-flight hostile projectiles despawn with particle pops (no damage), the player is repositioned to a safe arena marker and receives 30 f (1.0 s) of i-frames, camera locks. The Phase 1 object is destroyed and four objects spawn (Head, Body, Left Hand, Right Hand) continuing the same shared HP pool (the bar does not refill). Dialogue ownership through the swap belongs to the persistent controller (§11.4).
+Move
+Spec
+Bouncing Crossbone Spew (head)
+volley of 6-10 crossbones; 10 dmg, type BONE; bounce max 5; lifetime 6 s; shatter on player hit or on the 5th bounce
+Crossbone Stream (hands)
+hands park at opposite walls and fire horizontal bone lines (3 volleys, 0.8 s apart); stream bones spawn with bounce_enabled: false, shatter_on_solid: true — the first solid they touch is the opposite wall, and they shatter there; 12 dmg; also shatter on player hit
+Bone Cage
+hands exit the screen; bone walls sprout from both arena edges for 20 s; cooldown 30 s starting at full retraction. In the 16-tile arena the walls are 2 tiles thick per side, leaving exactly the 12-tile (384 px) minimum safe zone. Each segment telegraphs with 0.6 s of rumble; no segment sprouts within 3 tiles of the player (no crush, no trapped-in-wall); while the hands are off-screen, only the Head and Body are damageable — stated explicitly, because the cage is also the fight's biggest counterattack window
+
+Phase 2 head reachability (mirrors Modal, §10.3): the Reaper P2 Figure-8 uses the same four-part layout, so it inherits the same geometry guarantee — the lower lobe dips to 3.5 tiles above the highest platform at least once per loop, and the P2 arena authors two 1.5-tile standable outcrops under the lobe points. The same conservative 146 px vs 112 px, 34 px margin applies (sword up-slash pinned at 48 px above the collision box). AC34 enforces the reach window for P2 explicitly.
+Echo Reaper (permanent mode, §9.4): Phase 1 kit, 560 HP (70%), single attempt, retreat door available.
+Difficulty tension, acknowledged: the Reaper is an optional high-difficulty boss reached predominantly by the players who are struggling most. Mitigations: the Echo Reaper simplification, the retreat door, dialogue that teaches the rules (§9.8), and the assist toggle "Reaper Mercy" (Echo HP -30%, no Bone Wave). The 2-attempt block is intended as a real stake, not punishment for its own sake — if playtesting shows spiral frustration, the fallback is dropping permanent mode to dialogue-only escalation.
+10.5 Arena table
+All arenas fit the 640 x 360 view — camera is statically locked in every boss fight, so sweeping hazards (Modal) and arena constriction (Bone Cage) are always fully visible.
+Frame trim rule: arenas are authored 11 tiles (352 px) tall inside the 360 px view; the 8 px remainder is a 4 px dark border strip above and a 4 px strip below the combat rect, drawn as part of the arena frame. The camera locks to the 352 px combat rect; no gameplay, hazard, or UI element occupies the trim. The Reaper P2 arena (320 px tall) has a 40 px remainder, a 20 px ceiling and 20 px floor trim behind the collapse transition.
+Arena
+Size (tiles / px)
+Hazards / geometry
+Checkpoints
+Camera
+Overtime completion
+Traefin's Dunes (L5)
+20 x 11 / 640 x 352
+wall-slam side walls
+none inside
+static lock
+kill Traefin
+Mandaxx's Bridge (L10)
+20 x 11 / 640 x 352
+walls for boomerang return + stun
+none inside
+static lock
+kill Mandaxx or force the escape (arena clear, §10.2)
+Modal (L15)
+18 x 11 / 576 x 352
+ceiling/wall hand rails; spew floor; 2 bone outcrops (1.5 tiles, Head reach, §10.3)
+none inside
+static lock
+kill Modal
+Afterlife — Reaper P1
+20 x 11 / 640 x 352
+—
+none inside
+static lock
+defeat the Reaper (ends the Afterlife, §9)
+Afterlife — Reaper P2
+16 x 10 / 512 x 320
+bone cage walls (2 tiles/side -> 12-tile safe zone); 2 bone outcrops (1.5 tiles, Head reach, §10.4)
+none inside
+static lock
+defeat the Reaper
+
+Boss arenas contain no checkpoints (§8.2): an Overtime entered in an arena completes only on the boss's death or the arena clearing — the "finish the boss while low" intent, now written down.
+
+11. Engineering Standards (GameMaker Studio 2)
+11.1 Movement & collision, timestep [IMPLEMENTED — 30 fps port in M1a]
+Custom velocity mandate: hsp/vsp + manual collision sweeps; built-in vspeed, gravity, friction banned in gameplay objects. Fixed 30 fps logic (room speed 30) — the M1a port changes room speed and re-derives every frame-count constant (§4.1, §19). The replay harness runs before and after the port; because the port changes the integration step, step 2 re-baselines the state hash and the pre/post comparison uses tolerance traces (position and time within bounds), not hash equality (§15.2). The dodge writes hsp = 480 * dir for its 6 f duration; a ground dodge leaves gravity on the first unsupported frame, while an air dodge cancels all vertical momentum — vsp is set to 0, gravity is suspended for those 6 f, and the fall resumes from vsp = 0 with nothing restored (§5.5).
+Swept collision mandate. At 30 fps, one step is 33.3 ms and fast movers cross meaningful distances between samples — anything displacing 16 px or more per step (>= 480 px/s) must resolve with a per-axis segment (line) sweep from its previous to its current position, not a point/overlap check:
+Mover
+Speed
+Displacement/step
+Resolution
+Ion bolt
+640 px/s
+21.3 px
+Swept
+Scythe Harpoon
+700 px/s
+23.3 px
+Swept
+Mandaxx charge
+about 650 px/s
+21.7 px
+Swept
+Traefin charge
+520 px/s
+17.3 px
+Swept
+Mandaxx boomerang (outbound)
+520 px/s
+17.3 px
+Swept
+Boss-class knockback (player displaced)
+520 px/s
+17.3 px
+Swept
+Modal bullet hail bolts
+480 px/s
+16.0 px
+Swept
+Player at max fall
+900 px/s
+30.0 px
+Swept (vertical axis)
+Player dodge
+480 px/s
+16.0 px
+Swept (horizontal axis)
+Mandaxx boomerang (return)
+400 px/s
+13.3 px
+Overlap ok
+Grenade throw
+420 px/s
+14.0 px
+Overlap ok (bounce physics uses 2 substeps at bounces)
+Walk / sprint / enemy moves
+80-330 px/s
+2.7-11 px
+Overlap ok
+
+Without this, an ion bolt fired at point-blank range tunnels a 1-tile wall between samples and a max-fall player clips through a thin floor. AC35 pins both cases.
+11.2 Time domains & the Time Freeze architecture [PLANNED — design locked]
+GameMaker has no native per-object time scale, and an "everyone remembers to check the flag" Step bypass fails silently for new objects, does not stop alarms, and leaves Begin/End Step and Collision events running. The architecture is structural, not conventional:
+One time-domain manager. Pause, dialogue pause, hitstop (2 f at 30 fps), and freeze are four separate mechanisms in most GameMaker projects and clobber each other (hitstop ending mid-freeze, dialogue racing a stun). Here a single manager arbitrates:
+// scr_time_state() — the single authority; everything else queries it
+enum TIME { RUN, FROZEN, HITSTOP, DIALOGUE, PAUSE }   // priority ascending
+
+Effective state
+World (freezables)
+Player (incl. its anim_tick)
+Freeze countdown
+Overtime timer
+Dialogue typewriter
+PAUSE
+stopped
+stopped
+hold
+hold
+hold
+DIALOGUE
+stopped
+stopped
+hold
+hold
+ticks
+HITSTOP (2 f)
+stopped
+stopped
+hold
+hold
+hold
+FROZEN
+frozen
+active
+ticks
+ticks (not physical time, §5.1)
+ticks (exempt)
+RUN
+ticks
+ticks
+n/a
+ticks
+ticks
+
+Priority: PAUSE > DIALOGUE > HITSTOP > FROZEN > RUN. Ad-hoc pause flags are deprecated; every subsystem reads scr_time_state(). An object's anim_tick (§11.3) advances only in the states where its owner ticks, so animation-bound combat windows pause and resume with their owner and never drift across a hitstop or a freeze.
+The unskippable freeze gate. The parent owns the only Step event in the hostile tree and calls an overridable on_step(); a child that forgets a check cannot exist, because children do not write Step events at all:
+// obj_freezable — Create
+on_step = function () {};                        // children override this in their Create
+mem_image_speed = image_speed;                   // mem_* ALWAYS exist
+mem_speed       = speed;
+mem_path_speed  = path_speed;
+if (global.time_frozen) {                        // instances born during a freeze spawn pre-frozen
+    image_speed = 0;  speed = 0;  path_speed = 0;
+}
+
+
+// obj_freezable — Step (the ONLY Step event in the entire hostile tree)
+if (global.time_frozen) exit;
+on_step();
+Event restrictions for hostile objects, enforced in code review: no Step, no Begin/End Step, no Collision events, no Alarms (§11.3). All gameplay logic — including collision handling, which is already manual sweeps per §11.1 — lives in on_step(). This closes the "Begin/End Step and Collision aren't gated" hole because those events simply do not exist on hostiles.
+Freeze bookkeeping (idempotent).
+function scr_freeze_set(_on) {
+    if (_on == global.time_frozen) return;       // idempotent — no double-apply, no lost mem_*
+    global.time_frozen = _on;
+    with (obj_freezable) {
+        if (_on) { mem_image_speed = image_speed;  image_speed = 0;
+                   mem_speed       = speed;        speed       = 0;
+                   mem_path_speed  = path_speed;   path_speed  = 0; }
+        else     { image_speed = mem_image_speed;  speed = mem_speed;  path_speed = mem_path_speed; }
+    }
+    // Gameplay particle systems and gameplay sequences are updated manually
+    // in their owners' on_step (already gated). Ambient layers keep running.
+}
+Because mem_* are initialized in the parent Create and the function early-outs on repeat calls, objects created during a freeze restore correctly when it ends (their Create captured the intended speeds before zeroing them).
+Remaining rule: player grenades are not frozen (the player is operational) and detonate on schedule, but their blasts deal half damage to frozen enemies (§5.2); frozen enemies take frozen_damage_mult (0.5) from every player source, resolved in the hit pipeline rather than in on_step(), so a frozen enemy can still die and be removed; boss freeze budgets (§5.2) are enforced by the scheduler, not by the freeze system.
+Migration task (M1a): existing enemy and projectile Step bodies move into on_step() methods. The replay harness (§17) plus ACs 9-10 are the regression net (risk R13).
+11.3 Timers, alarms, and the animation driver [STANDARD]
+Alarms are forbidden in hostile objects: the runtime decrements them regardless of Step bypasses, so telegraphs, wind-ups, and cooldowns would keep ticking through a freeze. All hostile timing uses per-object frame counters or timer structs:
+windup = timer_new(12, function () { state = ATTACK; });  // 0.4 s at 30 fps
+The animation driver (frame-perfect by construction). Gameplay sprites animate at 10 fps and boss sprites at 20 fps, but the animation is driven from an integer counter, not by image_speed. image_speed stays 0 on every combat sprite; each object increments its own anim_tick once per logic step in which it is allowed to tick (§11.2), and derives the displayed frame from it:
+// every object with combat animation — runs inside the object's gated step
+anim_tick += 1;
+image_speed = 0;
+image_index = (anim_tick * ANIM_FPS) div LOGIC_HZ;   // ANIM_FPS = 10 (gameplay) or 20 (boss)
+// gameplay: 3 ticks per frame.  boss: floor(anim_tick * 2/3) — frame lengths alternate 2,1,2,1 ticks
+When a sprite changes, anim_tick resets to 0. Looping animations wrap with a modulo on the frame count. Because image_index is always an integer derived by integer arithmetic, there is no float accumulation and the sprite can never drift from its hitbox by a logic frame.
+Combat windows are whole sprite frames. At the 10 fps gameplay clock, one sprite frame is exactly 3 logic frames, so every combat window — hitbox active spans, the parry window, telegraphs, heavy wind-ups, swing timelines — is a whole number of sprite frames (3 f, 6 f, 9 f...). Boss sprites run one frame per 1.5 logic frames, so boss windows are an even number of boss frames (a multiple of 3 logic frames) and always end on a logic-frame boundary. The authored value is the sprite-frame range; the live check is exact:
+function scr_hb_live(_sprite, _a, _b) {
+    return sprite_index == _sprite && image_index >= _a && image_index <= _b;
+}
+Per-frame hitbox data. Hitbox rectangles live in a data file (hitboxes.json, an Included File) keyed by sprite name and sprite frame: for every attack frame, the rectangles that are live on that frame. scr_hitbox_bound (§6.1) spawns an obj_hitbox from the entry when its owner's sprite frame enters the bound range and removes it when the frame leaves it, so what the player sees is exactly what is active — "frame-perfect" is a data property, not a timing hope. Free-running timers remain legal only for non-visual cooldowns (attack cooldowns, regen delays, the dodge cooldown) and non-animated hazards (§6.1). The dodge is a movement state and is timer-driven by design (its i-frame window is the state's lifetime, 6 f = 2 sprite frames).
+Audits (standing deliverables): (1) the asset audit walks every sprite used by a combat object and flags any object whose animation is not driven by anim_tick or whose ANIM_FPS is not its class constant (AC31); (2) the frame-alignment audit checks that every attack sprite has hitbox data for exactly its authored active frames, that each active window equals N sprite frames x ticks-per-frame, that boss windows are even boss-frame counts, and that the sword's up-slash rectangle extends 48 px above the collision box (AC36). The dodge after-images (§5.5) are draw-only ghosts and are exempt (they animate by alpha). The typewriter and all dialogue timing live in the dialogue controller, which is not freezable — dialogue is explicitly exempt from Time Freeze (FROZEN row in §11.2).
+11.4 Dialogue system [PARTIALLY IMPLEMENTED — controller refactor in M1a]
+obj_dialogue_controller (persistent) owns all dialogue: a queue of requests { speaker, lines[], on_complete }. NPC and boss objects only submit requests — which solves the problem of the Reaper's final line needing to survive the NPC to boss Phase 1 object swap.
+The controller is also the single place that pauses gameplay during dialogue (via the time-domain manager, DIALOGUE state).
+Typewriter: 30 characters/s, own Step counters; skip on input; auto-advance 1.2 s after a completed line.
+Rendering: Draw GUI on the controller (decoupled from camera zoom). Backplates are draw_set_alpha + draw_rectangle with alpha and color reset afterward — no surface management is involved or needed.
+All lines live in one data script (scr_dialogue_data), keyed by enum.
+11.5 Run state [STANDARD]
+All progression state lives in one struct with accessors — no loose globals:
+global.run = {
+    deaths: 0,
+    reaper_state:        REAPER.LURKING,
+    reaper_attempts:     0,
+    permanent_boss_mode: false,
+    reaper_defeated:     false,
+    level_index:         1,
+    checkpoint_id:       0,
+    run_seed:            0,                 // rolled at New Game; seeds fx_rng and level_seed derivation
+    level_seed:          0,                 // current level's generator seed (section 8.4) — persisted so
+                                            // save/reload regenerates the identical layout
+    bosses_defeated:     { traefin: false, mandaxx: false, modal: false },   // cleared-arena rule (section 9.6)
+    overtime:            { active: false, remaining: 0, kills: 0 },          // persisted
+    loadout: { grenades: 3, has_grenades:  false,
+               has_phase_slash: false, has_freeze: false,
+               heavy_weapon: WEAPON.NONE },   // NONE | GREATSWORD | SPEAR | MACE (section 5.8)
+    stats: { kills: 0, overtimes_won: 0 }
+};
+// scr_run_save() / scr_run_load() / scr_run_reset()
+mandaxx: true in bosses_defeated is set by the escape (arena clear), not by a kill — either way the bridge is cleared and the Carrier Key is granted. traefin: true gates the heavy weapon armory (§5.8). Save path, write pattern, and autosave triggers: §4.4 (game_save_id, copy-to-.bak + write + verify, no rename-based atomicity).
+11.6 Tuning data [STANDARD — JSON migration in M1a]
+Every number in Appendix A is a tuning value. Baseline home: a scr_config constants struct. In M1a the numbers move to a tuning.json Included File loaded into global.cfg at boot, so balancing requires no code changes.
+Timings are stored as seconds or sprite frames and converted at load. Each combat timing is authored in seconds or in sprite frames and converted to logic frames with LOGIC_HZ; the loader asserts that every converted window is an integer number of logic frames and, for animation-bound windows, a whole number of sprite frames (even boss-frame counts for bosses). Changing LOGIC_HZ therefore re-derives every frame count instead of requiring a re-port (§16).
+Floor hitbox constants floor_w and floor_overlap live in tuning.json beside the physics constants; the traversal validator reads them (R21).
+Hitbox data (hitboxes.json, §11.3) is a sibling Included File.
+Appendix A becomes a generated artifact: a small script renders the appendix markdown from tuning.json, run at commit time (or in CI); the body of this document keeps intent and rules, not duplicate numbers, and the appendix header says "GENERATED — do not edit". Until the generator lands in M1a, the appendix is hand-maintained and the data file wins any dispute. The traversal validator (§8.4, Appendix B) reads tuning.json directly — the same single source of truth feeds the physics, the appendix, and the reachability simulation.
+11.7 Level pipeline engine rules
+See §8.4 "Engine compatibility rules" (runtime-only export; Included File registration; true tile layers; scr_tilemap_fill shim; object_get_sprite lookups) and the template schema (§8.4). These are permanent standards, not one-off fixes.
+11.8 Parallax background system [IMPLEMENTED]
+Three-layer desert parallax with horizontal-only wrapping (vertical looping was removed to kill seam artifacts). Per-layer speed ratios 0.15 / 0.40 / 0.75 of camera x. Layers are configured via asset_get_index lookups so layer and sprite names are data, not hardcoded references. Acts 2-3 get their own three-layer sets (§13).
+11.9 Projectile variants — spawn parameters, not "pooling" [STANDARD]
+Variants are spawn-parameter projectile variants, passed at creation via the var_struct argument of instance_create_layer. Per the GameMaker manual, struct variables are applied to the new instance after its Variable Definitions but before its Create event runs — which also means a Create that unconditionally assigns the same variable would silently overwrite the injected value. Defaults are therefore guarded:
+// obj_crossbone — Create
+if (!variable_instance_exists(id, "bounce_enabled"))   bounce_enabled = true;
+if (!variable_instance_exists(id, "shatter_on_solid")) shatter_on_solid = false;
+if (!variable_instance_exists(id, "max_bounces"))      max_bounces = 5;
+
+
+// spawner — Crossbone Stream variant
+instance_create_layer(x, y, "Projectiles", obj_crossbone, {
+    bounce_enabled:   false,
+    shatter_on_solid: true,
+    max_bounces:      0,
+    damage:           12
+});
+True pooling (deactivate and reuse) is unnecessary at this scale: the global hostile-projectile cap is 64 instances (§16), which instance creation handles comfortably.
+
+12. UX, HUD & Accessibility
+12.1 HUD
+Element
+Placement
+Content
+HP bar
+Top-left
+Segmented (25 HP per segment); hidden during Overtime State
+Overtime countdown
+Top-center
+Replaces the HP bar during Overtime State; pulses red below 5 s
+Stamina bar (amber)
+Bottom-left
+The physical economy: sprint drain, dodge costs, guard drains — visible live
+Energy bar (cyan)
+Bottom-left, above stamina
+The ability economy: Phase Slash spending, Freeze banking. Hidden until the player's first energy unlock — either has_phase_slash or has_freeze — Act 1 has no energy consumer, and an empty meter teaches nothing except confusion; the bar appears at the L6 Phase Slash pickup (§15.2 M1c/M2 note)
+Grenade pips
+Bottom-left, under stamina
+Carry count
+Ability indicators
+Bottom-right
+Time Freeze icon lights only at full energy — doubling as the ready cue; Phase Slash icon + cooldown sweep
+Boss bar
+Bottom-center
+With phase markers
+Dialogue plate
+Bottom-third
+Nameplate + typewriter text
+Level / checkpoint ticks
+Top-right
+Level number; checkpoint progress
+
+HUD layout targets the 640 x 360 base; all elements sit inside a 16:9 title-safe area so integer scaling never clips them.
+12.2 Feedback standards
+Hit-flash shader (implemented), 2 f hitstop on melee connect, toggleable screenshake, freeze vignette (desaturation + border frost — visually distinct from the damage flash), poise-break pulse on enemy stagger, a stun icon over mace-stunned enemies, dodge after-images (§5.5), a pre-commit cue for heavy weapons (weapon glint plus the first note of the audio ramp at f6, three frames before the point of no return, §5.8), and rejected-input feedback: a dodge without stamina or a Freeze below full energy fizzles with a distinct sound and an icon flash — the player always learns why nothing happened (§12.3 colorblind rule: the cue is sound + icon, not hue). Hits taken during a heavy commitment play the hit sound and flash without a flinch animation, so the uninterruptible state reads as armor rather than as ignored damage (§5.8). Frozen enemies hit during a Time Freeze show a half-strength hit flash. Heavy wind-ups carry a rising audio ramp (the player-side counterpart of the §6.6 telegraph standard) so a held attack announces itself.
+12.3 Accessibility
+Remappable keyboard/mouse (M2); gamepad presets (M2) and full remapping (M3).
+Screenshake and flash-intensity sliders (the flash shader's intensity is a scalar).
+Colorblind safety: projectiles are shape-coded, not just color-coded — enemy ion bolts are diamonds, bones are cross-shaped, grenades are round; the freeze tint differs from the damage tint; the heavy-attack telegraph is a double flash + audio thump (count and sound, not hue).
+Text speed and size options for dialogue.
+Hold/toggle options for guard (the shared dodge-sprint button fires a dodge on press and sprints on hold; the attack button's hold branch is the heavy weapon). A dedicated-key option for heavy weapons (the freed F / LB binding) is a Should-list item for players who cannot hold reliably — the hold chain stays the default.
+Assist mode (optional, clearly labeled): Extended Overtime (45 s), Reaper Mercy (§10.4). No hidden assist consequences.
+
+13. Art & Audio Direction (summary)
+32 px grid pixel art; the player silhouette keeps the highest contrast against every biome palette (desert ochre, carrier teal-steel, homeworld bone-violet).
+Art is authored for the 640 x 360 base (20 x 11 tile view); the player silhouette is re-validated at this scale before slot art hardens (R12, M1a exit demo). Boss arenas ship with the 4 px frame trim (§10.5) as part of their frame art.
+Animation clocks: gameplay sprites animate at 10 fps, boss sprites at 20 fps — boss reads as "more alive" than the world by design. Sprite frame counts are authored to the clocks (a 0.4 s telegraph = 4 gameplay frames), every combat window is a whole number of sprite frames, and every attack frame has a matching hitbox entry (§11.3).
+Heavy weapon silhouettes: greatsword reads wide, spear reads long, mace reads heavy — each identifiable at 640 x 360 zoom and in the after-image trail (dodge ghosts use the current pose, so weapon swaps stay legible mid-fight). The wind-up pose gets a rising audio ramp so a held attack announces itself and reads as intent, not lag.
+Shape language: everything hostile is angular; everything player-owned is rounded (reinforces the colorblind shape coding).
+Three parallax layer sets, one per act (framework implemented, §11.8).
+Audio: per-act ambience plus a combat intensity layer; a standardized 0.4 s telegraph cue shared by all enemies (per-variant pitch variants); heavy attacks use the double-thump variant (§6.6); the Reaper's theme is the main theme detuned and reversed. Music ducks during dialogue.
+
+14. Narrative & Teaching Structure
+Act 1 (Desert): home, abduction aftermath. Teaches the core kit (level table, §8.1; set-piece injection, §8.4). Traefin is a cyborg duelist left to guard the abductees' trail.
+Act 2 (Carrier): infiltration. The armory after Traefin's arena presents the three heavy weapons on pedestals — the survivor takes one relic and learns to plant their feet (§5.8); Phase Slash is taken from the same breached armory at L6's entry; Time Freeze is salvaged from the engine core at L7's exit. Mandaxx is the carrier's warden; its escape (radio stinger) sets up Act 3, and the Carrier Key it drops opens the Detention Ring bulkhead at L8's entry — the locked door holding the abductees' prison blocks.
+Act 3 (Homeworld): the rescue. Modal is the species' final instrument. L11 teaches stamina management across long traversals (§8.1).
+The Reaper is the only NPC with dialogue (§9.8 lines) — by design: the campaign speaks through environment and radio, the Afterlife through him.
+The ability unlock schedule is data in global.run.loadout (§11.5); each unlock is paired with a safe practice stretch in the same level via its set-piece chunk (§8.4). The teaching order is load-bearing: nothing is taught before its unlock exists (§8.1 — heavy-weapon practice begins at L6, where the armory is).
+
+15. Scope, Priorities & Milestones
+15.1 MoSCoW
+Class
+Items
+Must
+Core loop (move/sprint/dodge/fight/guard/parry); stamina + energy economies; 4 enemy variants incl. heavy attacks; hit pipeline with the HEAVY and STUN types and frame-bound hitboxes; Traefin; 3 heavy weapons + armory choice; Act 1 generated levels + checkpoints + save; Overtime State; Time Freeze (full-meter gate); Phase Slash; template schema + validator; Afterlife state machine (dialogues, 2-attempt block, regression, permanent mode on the Echo fight); Mandaxx; Modal; HUD; KB/M + full gamepad parity (every action and every menu reachable on a controller alone — the console-accessible foundation); credits
+Should
+Console release (platforms to be chosen) on top of the Must-level gamepad parity: platform save, suspend/resume, controller-disconnect handling, and certification checks (§16, R23); Reaper Phase 2 (full modular form); rebinding (KB/M, then pad); assist mode; Mandaxx escape cutscene (else a simple fade-out); colorblind shape pass; Steam Deck polish
+Could
+End-screen stats beyond the minimum; extra dialogue variants; a fourth heavy weapon
+Won't (v1.0)
+New Game+; boss rush; localization; multiplayer; level-editor sharing; Grappling Hook (removed from scope); player ranged weapons (Ion Blaster removed)
+
+15.2 Milestones
+M1 is split three ways: M1a touches every constant and asset (highest regression risk — it goes first, behind the replay harness), M1b builds the player-facing mechanics, M1c delivers Act 1 content on top. Each gate is independently shippable and independently testable.
+Milestone
+Contents
+Exit criteria
+M0 — Vertical slice
+Player, 4 enemies, Traefin, parallax, pipeline prototype
+Complete
+M1a — Engine retrofit (ordered — each step is replay-verified against the previous)
+1. Replay harness first (it anchors before/after comparison for everything below); 2. 30 fps port (room speed + all frame constants) — re-baselines the state hash; 3. resolution switch to 640 x 360; 4. blaster / free-aim / recoil dead-code strip (R17); 5. hit-pipeline refactor (+ HEAVY and STUN type data, frame-bound hitbox spawning); 6. enemy Step-to-on_step() migration (Time Freeze prep); 7. tuning.json + appendix generator (timings as seconds / sprite frames converted by LOGIC_HZ; floor hitbox constants set from the shipped player — R21; hitboxes.json); 8. swept-collision mandate for fast movers (§11.1); 9. animation driver (anim_tick) + per-frame hitbox data for every existing attack + asset audit and frame-alignment audit; retune existing sprites to the 10 / 20 fps clocks
+ACs 23, 31, 35, 36 passing; replay state-hash parity across steps 3-9 (hash re-baselined at step 2; the pre/post-port comparison uses tolerance traces); schema validator green on all existing slots; floor hitbox constants recorded in tuning.json and the band table regenerated; 640 x 360 smoke demo reviewed (R12)
+M1b — Player mechanics
+Stamina + energy systems (§5.6); dodge-launched sprint, ground + air dodge, pass-through with ejection, vertical-momentum cancel, horizontal momentum clamps, no coyote after a ledge dodge (§5.5) + after-images; guard rework — rooted guard, attack-cancel / guard-cancel / cancel-raise rules, and 3 f parry retune (§5.4); hold-to-heavy input chain with a debug weapon, including the no-abort and uninterruptible rules (§5.8 contract); gamepad parity for every action and menu (AC42); Phase Slash stop-at-first-solid mechanics (§5.3, debug-unlocked); Overtime State; checkpoints; run struct + save/load (seeds, bosses_defeated, Overtime persistence, game_save_id path); time-domain manager + freeze gate groundwork
+ACs 4, 6, 7, 8, 13, 25, 26, 29, 30, 32, 33, 38, 40, 42 passing
+M1c — Act 1 content
+16 workshop slots filled (incl. all set-piece chunks, tagged needs_boost / needs_sprint_dodge / needs_phase, dead tiles excluded); 4 desert levels generated + tuned; Photon Grenade (L2 unlock); enemy heavy attacks (Standard + Heavy Cyborg, anti-turtle trigger counting blocks only) and the Heavy turn lockout; heavy weapons x3 + armory choice + checkpoint swap + the mace stun + uninterruptible enemy heavy attacks (AC43); stand-in Reaper (Traefin reskinned via obj_boss_parent) wiring the full Afterlife loop T1-T13; HUD (stamina + energy meters, energy bar hidden until first energy unlock + debug kit-unlock toggle for playtests); traversal validator with simulation-derived bands + recovery platforms + placement rules
+ACs 5, 9, 10, 12, 20, 21, 28, 37, 39, 41, 43 passing; R10 gate: 5+ external testers complete the Afterlife loop (2-attempt block + regression) and the exit interview says the stakes were understood, not random
+M2 — Act 2
+Carrier biome + tileset (proves the schema swap); Mandaxx; Time Freeze (gate + budgets, full-meter rule) — the energy economy goes live here (Phase Slash at L6, Freeze at L7; the hidden energy bar becomes visible); Reaper D3 + real Phase 1 kit replacing the stand-in; KB/M rebinding
+ACs 1, 2, 3, 14, 19, 27 passing
+M3 — Act 3
+Homeworld biome; Modal; Reaper Phase 2 + permanent mode + Echo; gamepad remapping
+ACs 15, 16, 17, 18, 22, 24, 34 passing; AC37 re-verified for lasers and harpoon grabs
+M4 — Polish
+Accessibility; YYC perf passes vs. §16 budgets; 144 Hz frame-pacing validation with a recorded accept/reject verdict (R20); console readiness review against the §16 console rules (R23); save fuzzing; balancing; escape cutscene
+All 43 ACs passing on the min-spec YYC build
+
+The stand-in Reaper exists so R10's question — "is 2-attempt + regression actually fun?" — is answered in M1c with real testers, not deferred to M2 when the real kit lands.
+15.3 Cut order (if scope pressure)
+Two of the three heavy weapons — ship one (mace or greatsword; the armory scene degrades to a single pedestal) rather than all three; the rooted-commitment fantasy survives with any one. (Fewer weapons also means fewer frame-bound hitbox sets to author, R22.)
+Grenadier friendly-fire edge cases — keep the core "grenades hurt everyone" rule; drop bespoke edge-case handling.
+Reaper Phase 2 — permanent mode ships on the Echo (Phase 1-only) fight; the Afterlife block system is unaffected.
+Modal is not cuttable — the final boss is the pitch.
+
+16. Non-Functional Requirements
+Requirement
+Specification
+Resolution & aspect
+Base 640 x 360 (16:9), integer-scales cleanly to 720p (x2), 1080p (x3), 1440p (x4), 4K (x6) and the Steam Deck's 1280 x 800 (x2, 40 px letterbox bars top and bottom)
+Scaling
+Integer-first: scale by the largest whole factor and letterbox the remainder; a hybrid filter (integer pre-scale + linear remainder) is the documented fallback only if a future target demands fill
+Framerate
+30 fps locked logic (LOGIC_HZ 30, room speed 30); vsync on; no unlocked-fps mode; frame pacing validated on 60 Hz and 144 Hz displays (M4, R20). Physics integrates with dt = 1 / LOGIC_HZ and every timing is stored in seconds or sprite frames and converted at load (§11.6), so the logic rate is a constant, not a port
+Input model
+30 Hz input sampling with a 2 f pressed-buffer on all action inputs — no press is eaten between samples; the 3 f parry window includes the sampling slack by design (perceived 100-133 ms); hold thresholds are expressed in sampled frames. 30 fps is a feel and battery decision, not a performance constraint. Two separate contingencies, only if M4 feel tests fail: (a) input latency (R19) — keep 30 Hz logic and sample and timestamp presses at 60 Hz, a change confined to the input layer; (b) display pacing (R20) — set LOGIC_HZ to 60. Because timings are authored in seconds and whole sprite frames and converted at load, (b) re-derives every frame count (a gameplay sprite frame becomes 6 logic frames, a boss frame 3) and is verified by the replay harness; per-frame hitbox data is keyed by sprite frame and is unaffected
+Animation
+Gameplay sprites 10 fps; boss sprites 20 fps, both driven from an integer anim_tick (§11.3); combat windows are whole sprite frames (boss windows even boss-frame counts); audited by the asset audit and the frame-alignment audit (AC31, AC36)
+Min spec
+i5-8400 / GTX 1050-class / 8 GB RAM, 1080p
+Performance budgets
+At the 33.4 ms frame: Step 8 ms or less; draw 12 ms or less; no frame above 33.4 ms during Modal grenade spew / bullet hail / detonation chains on min spec — measured on YYC builds, not the VM; the replay harness drives the worst-case scenarios deterministically
+Instance budgets
+64 hostile projectiles alive max (hard cap; spawner requests beyond it are dropped and logged); 250 active gameplay instances max; 4 detonations/frame max (§6.7); 3 dodge after-image ghosts max (draw-only)
+Save behavior
+Single slot; JSON at game_save_id (§4.4); copy-to-.bak + write + verify; no rename-based atomicity (the manual does not guarantee file_rename overwrites an existing destination); version field with migration hooks; autosave-only
+Toolchain
+IDE + runtime version pinned and recorded in the repo README; the current runtime predates tilemap_fill (§8.4 shims) — the upgrade-or-stay decision is an M1a action item (R11); several doc rules (var_struct ordering, layer behavior) are version-dependent, so a runtime upgrade re-runs the §8.4 checks
+Platforms
+Windows 10+ first; Steam Deck verification target; consoles are a target (specific platforms to be chosen) and the game is designed console-accessible from the start: controller-first input and menus, no mouse-only or hover-only interaction, title-safe HUD, platform-safe save I/O behind a thin wrapper, suspend/resume and controller-disconnect handling, and 30 fps budgets measured on YYC builds; Mac/Linux post-1.0
+Input devices
+KB/M + XInput / DualShock / Switch Pro; the gamepad is a first-class device — every gameplay action and every menu is operable on a controller alone (AC42); no always-online features; fully offline single player
+
+
+17. Acceptance Criteria (testable; every AC assigned to a milestone)
+Infrastructure note: the scripted-input replay harness (fixed 30 fps logic + seeded PRNGs, §8.4) drives the deterministic ACs — same seed plus same input script must reproduce identical state (AC23). Performance ACs run on YYC builds.
+#
+Milestone
+Criterion
+AC1
+M2
+Activating Time Freeze halts all hostile objects within 1 frame: a grenade in flight occupies an identical position across 30 frozen frames
+AC2
+M2
+A frozen enemy or boss part takes exactly 50% of the damage from every player source — sword, heavy weapons, Phase Slash, and grenade blasts — and takes no poise damage, stun (including the mace shockwave), or knockback while frozen; a frozen enemy reduced to 0 HP is killed immediately with kill credit (+5 s Overtime, +15 energy) and death FX; a grenade thrown during a freeze flies and detonates on schedule and deals half damage to frozen enemies and full damage to the player; frozen hostiles deal no contact damage; frozen hostile projectiles and hazards take no damage
+AC3
+M2
+A third Time Freeze activation within one boss attempt is rejected with fizzle feedback
+AC4
+M1b
+Death starts a 30.00 s Overtime; 3 kills add exactly +15 s (and +45 energy); the timer never exceeds 60 s
+AC5
+M1c
+Unguarded damage during Overtime triggers True Death and advances the Afterlife state per §9.3 (full loop wired via the stand-in Reaper)
+AC6
+M1b
+Completing Overtime at a checkpoint restores exactly 35 HP with the checkpoint heal suppressed (rule O2), does not increment deaths, and does not interrupt play
+AC7
+M1b
+With 20+ stamina and the cooldown clear, a Shift/LT press fires a dodge on the press frame (no added latency): 0.20 s at 480 px/s, i-frames for the full duration (a projectile overlapping the player mid-dodge deals 0), 20 stamina, 3 after-images; it passes through enemy bodies (if the dodge ends overlapping one, the player is ejected along the travel direction with no contact damage); holding through the burst continues into sprint at 330 px/s when 15+ stamina remains; releasing during the burst leaves a plain dodge; with the cooldown active or 15-19 stamina, a held press starts a plain sprint instead (fizzle cue only at 15-19); the 0.5 s cooldown is anchored to dodge end; in the air the press is an air dodge only; a dodge started in the air travels level (AC33) and a second dodge in the same airborne period is rejected until the player lands
+AC8
+M1b
+A guard raised from neutral within 3 f of a hit negates damage at zero stamina cost and stuns the attacker for 2.0 s; a later guard only blocks (10 stamina, ground-only); while guard is held the player cannot move (hsp = 0) or jump, can turn in place, and can leave guard by releasing it or by dodging
+AC9
+M1c
+A sword hit on the Heavy Cyborg's raised shield deals 0 damage; a grenade and a Phase Slash from the front deal full damage; a dodge rolls through the shield to its rear; the Standard Cyborg's heavy attack deals full damage through a raised guard
+AC10
+M1c
+A Grenadier grenade damages both the player and another enemy inside its blast
+AC11
+M4
+10 stacked grenades produce at most 8 detonations, at most 4 per frame, with no frame exceeding 33.4 ms on min spec (YYC)
+AC12
+M1c
+Traefin charges only after 380 px+ for 1.5 s; a wall-miss stun lasts 3.0 s; no second stun is possible within 10 s
+AC13
+M1b
+A Phase Slash never passes through solid terrain of any thickness: it stops at the last free position before the first solid (travel occurs, cost charged) and a fully blocked path fizzles free; it can still cross pits, gaps, and enemies
+AC14
+M2
+The Mandaxx boomerang returns within 3.5 s even if it never contacts a wall; an overkill hit at the 20% threshold triggers the escape instead of a kill
+AC15
+M3
+With both Modal hands performing ranged attacks, a Grenade Spew request is denied (and logged)
+AC16
+M3
+Damage to any Modal part decrements the single shared bar; the 50% phase flip fires exactly once
+AC17
+M3
+The Reaper Phase 2 transition destroys all in-flight projectiles with no damage and grants the player 30 f (1.0 s) of i-frames
+AC18
+M3
+During Bone Cage, the safe zone never falls below 12 tiles and no segment sprouts within 3 tiles of the player
+AC19
+M2
+Saving & quitting during FIGHT_A2 resumes at FIGHT_A2 (attempt 2) on load
+AC20
+M1c
+New Game after REAPER_PERMANENT resets every field of global.run; loading an older-version save runs the migration hook into a playable state (re-verified in M3 with the real permanent mode)
+AC21
+M1c
+The validator simulates the envelope from tuning.json (floor hitbox, coyote, technique chains, 16 px margins — Appendix B) and passes 100 seeded generations: untagged main-path gaps <= 4 tiles; needs_boost gaps 7-8 (any level); needs_sprint_dodge gaps 11-12 (L2+); needs_phase gaps 14 (L6+); no dead-tile gap (5, 6, 9, 10, 13) and no gap >= 15 (band values re-derived from the live constants); every tag is honest in both directions (the required chain crosses the gap and the strongest disallowed chain does not); every gated gap's pit contains a recovery platform whose climb-back flood-fills to the takeoff ledge using walk/climb moves only; consecutive needs_phase gaps are >= 2 chunks apart; no Ranger/Grenadier sits across a gated gap from the main path; climbs <= 3 tiles per seam with platform stacks in U/D chunks; all door seams weld; every spur is bidirectionally reachable
+AC22
+M3
+In any 15 s window of the Modal fight, the Head is within up-slash reach (conservative 98 px jump rise + 48 px up-slash = 146 px, from a standable surface — floor or 1.5-tile bone outcrop) at least once; the authored up-slash hitbox is verified by the frame-alignment audit
+AC23
+M1a
+Replay determinism: same seed + same 600-frame input script (20 s at 30 fps) produces an identical state hash (twice in a row, and across a save/reload)
+AC24
+M3
+A single Dual Laser Sweep activation deals at most 2 hits to the player (continuous-damage cap, §6.5)
+AC25
+M1b
+Save & quit during Overtime resumes in Overtime: HP 0, same remaining time, same kill count — no free heal, no counter dodge
+AC26
+M1b
+Blocked and parried hits during Overtime never trigger True Death
+AC27
+M2
+Time Freeze activates only when energy is exactly 100 and drains it to 0; an activation attempt at partial energy is rejected with fizzle; a Phase Slash at 60 energy measurably delays Freeze availability until the meter re-banks to 100
+AC28
+M1c
+Dodging through the Standard Cyborg's 0.8 s heavy attack with correct timing deals 0 damage; standing ground and guarding it deals full damage through the guard
+AC29
+M1b
+Holding the attack button past the 9 f threshold (0.30 s) starts a heavy commitment that nothing can end early — greatsword 24 f / spear 30 f / mace 39 f of locked-in time (press-to-strike 21 / 24 / 30 f): hsp forced to 0, every input ignored (dodge, guard, jump, movement, taps, and releasing the attack button), ground-only; a tap (release inside 9 f) never triggers a heavy; damage taken during the commitment is applied but causes no flinch, cancel, or knockback
+AC30
+M1b
+A plain sprint engages on a held button at 15+ stamina when the dodge is unavailable; a sprint start from rest via the dodge costs 20 and continues only if 15+ remain; after emptying, sprint does not re-engage until 30; a jump out of a dodge takes off at <= 330 px/s (clamped); a sprint-jump + air dodge clears a 12-tile gap where a walk-jump + air dodge cannot (413 px vs 336 px effective reach at the baseline floor hitbox)
+AC31
+M1a
+The asset audit flags zero exceptions: every combat sprite is driven by anim_tick (image_speed = 0) with ANIM_FPS 10 for gameplay sprites and 20 for boss sprites
+AC32
+M1b
+Tap/hold contract: a tap <= 9 f starts the sword swing on the press frame (zero added latency) and never triggers a heavy; a hold past 9 f begins the commitment with the swing's recovery absorbed; the heavy executes exactly at the wind-up's end with no further input; releasing the attack button during the wind-up has no effect
+AC33
+M1b
+Air-dodge geometry: during an air dodge the player's y position changes by <= 1 px and gravity is not applied; vsp is 0 at dodge start (all vertical momentum cancelled) and the fall resumes from vsp = 0 with the pre-dodge value not restored; a dodge never raises the player; exactly one air dodge per airborne period, refreshed on landing
+AC34
+M3
+In the Reaper Phase 2 arena, the Head is within up-slash reach (conservative 146 px vs the lower lobe at 112 px — 34 px margin) from a standable surface at least once per 15 s window; the arena authors two 1.5-tile outcrops under the lobe points; Bone Cage safe-zone rules (AC18) hold unchanged
+AC35
+M1a
+No tunneling: an ion bolt (640 px/s, 21.3 px/step) fired at a 1-tile wall from 8 px away is stopped by it; a player at max fall speed (900 px/s, 30 px/step) landing on a 1-tile floor never passes through; every mover at or above 16 px/step uses swept resolution (§11.1)
+AC36
+M1a
+Frame alignment: for every attack sprite the hitbox is live exactly on its authored active sprite frames (active window = frames x 3 logic frames; boss windows an even boss-frame count); a hitbox never exists on a frame without hitbox data; the sword up-slash rectangle extends 48 px above the collision box. Re-run as each new attack lands
+AC37
+M1c
+Unguardable sources available by M1c (enemy heavy attacks, grenade blasts) still trigger True Death during Overtime through a raised guard; lasers and harpoon grabs are re-verified in M3
+AC38
+M1b
+Guard rules: (a) an attack press while guard is held (including during a parry stun) cancels guard and starts the swing, and holding guard afterwards does not re-raise it; (b) a guard press cancels a sword swing only during recovery (f7-f12), never during startup or active; (c) a cancel-raised guard blocks from its first frame but never parries, while a guard raised from neutral does; (d) guard presses during a heavy commitment do nothing and are not buffered, except presses in the final 2 f of recovery
+AC39
+M1c
+Dodge pass-through and Heavy turn lockout: a dodge ending inside a Heavy Cyborg ejects the player to its far side; after a roll-through, the Heavy's facing does not change during TELEGRAPH, ATTACK, or RECOVER, and needs 15 f to turn 180° in ALERT / CHASE
+AC40
+M1b
+Ledge dodge: leaving the ground during a dodge grants no coyote time; a jump press during the carry or fall is buffered and consumed on landing, never accepted in the air; gravity resumes on the first unsupported frame; the air dodge is not consumed; the resulting reach never exceeds the dodge-ledge chain limit asserted in Appendix B
+AC41
+M1c
+Mace shockwave: deals 0 damage; stuns every non-boss enemy inside the wave's authored hitbox, the primary target included, for 1.0 s, followed by 3.0 s of stun immunity; bosses and enemies mid-heavy-attack are unaffected (and do not start the immunity timer); a Heavy Cyborg's raised frontal shield blocks it; a 48 f mace cycle cannot stun-lock any enemy
+AC42
+M1b
+Gamepad parity: every gameplay action and every menu that exists at the milestone is reachable and operable with a gamepad alone, using the default bindings (Move stick/D-pad, Jump A, Sword X, Heavy X held, Guard Y, Dodge/Sprint LT, Phase Slash RT, Time Freeze RB, Grenade B, Pause Start); no screen requires a keyboard or mouse; re-verified on the complete UI in M4
+AC43
+M1c
+Uninterruptible heavy attacks: a hit, knockback, guard-break stagger, stun, or harpoon pull during the player's heavy commitment applies its damage (with the normal 22 f of i-frames) without flinching, cancelling, or displacing the player; during an enemy heavy attack a poise break is deferred until recovery ends, the mace shockwave does nothing and starts no immunity, and Time Freeze suspends and then resumes the attack
+
+
+18. Open Questions & Risks
+#
+Risk / open question
+Impact
+Mitigation / decision path
+R1
+Chunk authoring throughput (16 slots at content quality, solo dev)
+High
+Copy-fill fallback already works; tags allow slot reuse; slot count can grow to 24 with a room resize
+R2
+Multi-tileset support unbuilt (Acts 2-3)
+Medium
+Schema stores tileset_id + roles, so the M2 swap is a mapping change, not a slot migration; tpl_props decoration channel deferred to M2
+R3
+Freeze completeness — new hostile objects forgetting the gate
+Medium
+Structural: children cannot write Step events; AC1/AC2 as standing harness tests
+R4
+Players reading Afterlife regression as a bug
+Medium
+§9.8 mitigations + the M1c stand-in-Reaper playtest gate directly measures this
+R5
+Modal perf on min spec (spew + hail + particles)
+Medium
+§16 caps; replay-harness-driven profiling on min-spec YYC at M3
+R6
+Save corruption
+High
+Copy-to-.bak + verify + fallback (§4.4); versioned schema; save fuzzing in M4
+R7
+Shared dodge-sprint button feel: the press always fires a dodge when available, so a player who only wanted to walk fast spends 20 stamina and a 0.2 s burst
+Medium
+Plain-sprint fallback when the dodge is unavailable (§5.5); the dodge's i-frames make an unintended burst harmless; a separate sprint key / sprint toggle is a rebinding option (M2); playtest in M1b
+R8
+Solo-dev scope overall; M1a concentrates engine-wide changes
+High
+MoSCoW + cut order (§15); M1a is ordered behind the replay harness and split from M1b/M1c so each gate stays shippable; every M1a step is replay-verified
+R9
+Tuning churn invalidating the PRD appendix and the traversal bands
+Low
+Appendix generated from tuning.json — and the validator derives the bands from the same file (§8.4, Appendix B), so a physics tweak re-derives the envelope automatically instead of silently invalidating AC21
+R10
+Is 2-attempt + regression actually fun? (unvalidated)
+High
+M1c exit gate: the stand-in Reaper runs the full Afterlife loop for 5+ external testers before any M2 content is built; fallback = dialogue-only escalation
+R11
+Runtime version is old (predates tilemap_fill); several doc rules are version-dependent
+Medium
+Toolchain pinned in the repo (§16); upgrade-or-stay decision recorded at M1a; an upgrade re-runs the §8.4 engine checks and the var_struct ordering test
+R12
+The 640 x 360 switch changes game feel and art density
+Medium
+M1a exit demo re-validates the player silhouette and HUD at the new zoom before slot art hardens; documented rollback = 960 x 540 + hybrid scaling
+R13
+The Step-to-on_step() migration touches every implemented enemy
+Medium
+Replay harness + ACs 9-10 as the regression net; migration is mechanical; done in M1a before new enemies exist
+R14
+Air dodge vs the traversal envelope — a straight-line dodge that cancels vertical momentum can trivialize hazard windows and set-piece pacing, and it buys airtime when used mid-fall
+Medium
+The envelope is simulation-derived from tuning.json (Appendix B) with the dodge searched at its best timing in every chain; dodge momentum is clamped at jump takeoff and dodge exit and a ledge dodge grants no coyote (§5.5); the one-per-airtime rule blocks hover/glide chains; the dodge never raises the player, so it cannot climb; M1c playtest specifically watches hazards crossed by raw dodge i-frames
+R15
+Two-resource readability (stamina vs energy confusion)
+Medium
+Color + icon + position coding (§12.1); the energy bar stays hidden until the first energy unlock so Act 1 never shows a dead meter; a debug kit-unlock toggle lets M1c testers evaluate the two-meter HUD deliberately; the freeze icon doubles as the full-energy cue
+R16
+Heavy weapons are rooted, uninterruptible, and cannot be aborted — a long locked-in time (0.8-1.3 s) is punishing if input drops frames, and uninterruptibility lets a player trade hits through a swing; the hold chain also stacks the opening sword swing's 18 damage onto the heavy
+Medium
+Wind-ups are player-side telegraphs with a rising audio ramp; AC29/AC32/AC43 pin the durations, the input contract, and the uninterruptible rule; hitstop-free wind-up (no hitstop on self); hits still deal damage during a commitment, and any damage in Overtime still ends the run, so uninterruptible is armor, not invulnerability; the greatsword leads on damage for its speed (52.7 dps vs the sword's 45) — if heavies overperform in M1c playtests, tuning.json lowers heavy damage or folds the opening swing's damage into the heavy instead of re-spec'ing the input
+R17
+Blaster / free-aim / recoil dead code in the implemented player object invites regressions
+Low
+Stripped in M1a before stamina/dodge land (same file); replay harness + ACs 9-10 as the regression net
+R18
+Attack-button tap/hold misreads: because a heavy commitment cannot be aborted or cancelled, a slightly long tap now costs the full locked-in time (0.8-1.3 s)
+High
+The threshold is 9 f (0.30 s) — the worst sampled deliberate tap (150 ms -> 5 frames) misses it by over 130 ms; a pre-commit cue (weapon glint and the first note of the audio ramp) plays at f6, three frames before the point of no return, so a player who sees it can still release; the freed F / LB dedicated-key option (§12.3) removes the ambiguity entirely; playtested in M1b alongside R7's shared-button test, then re-checked with real players in M4
+R19
+30 Hz input latency — sampling adds up to 33 ms to every window, felt most in parry timing
+Medium
+Accepted and designed-for: the 3 f parry window was sized with the sampling slack included (perceived 100-133 ms, §5.4); 2 f pressed-buffers stop lost inputs (§4.3); combat windows are frame-bound so nothing drifts (§11.3); if M4 feel tests fail, contingency (a) in §16: 60 Hz input sampling with timestamped presses at 30 Hz logic
+R20
+144 Hz frame pacing — vsync-locked 30 fps on a 144 Hz display has uneven cadence (4.8 refreshes per frame) and visible scroll judder
+Medium
+M4 records an explicit accept/reject verdict on real hardware (§15.2); if rejected, contingency (b) in §16: set LOGIC_HZ to 60 (timings are stored in seconds and sprite frames and converted at load, so it is a constant flip verified by the replay harness); Steam Deck (60 Hz) is unaffected
+R21
+Floor hitbox constants (floor_w, floor_overlap) are not yet fixed — the traversal band table (§8.4) is a snapshot at the illustrative baseline (24 px, 1 px), and the L2 set-piece gap width, the dead tiles, and the slot tags all derive from it
+Medium
+Set in M1a step 7 from the shipped player hitbox; the band table and tags regenerate from the validator; AC21 fails loudly if slot tags disagree with the live constants; no slot is tagged by hand before then
+R22
+Frame-perfect hitboxes need hitbox data for every attack frame — authoring and audit load grows with each animation
+Medium
+Per-frame collision masks or the hitbox data file are the single source; AC36 audits alignment automatically; the cut order (§15.3) reduces heavy weapons first; keep attack animation counts small and reuse hit frames across weapon variants
+R23
+Console release readiness — GameMaker console exports need platform-holder access, specific runtime versions, YYC builds, and platform APIs for save data, suspend/resume, controller disconnect, and certification rules; unknown requirements could force late changes
+Medium
+Platform specifics stay behind thin wrappers (input, save, pause/suspend); gamepad parity is enforced from M1b (AC42); runtime pinned (R11); YYC performance budgets (§16); console readiness review in M4; no keyboard-only or hover-only UI
+
+
+19. Appendix A — Numbers (living baseline)
+Target state: GENERATED from tuning.json — do not edit by hand once the M1a generator lands. Until then this appendix is hand-maintained; on any disagreement the data file wins and this table gets updated. Intent and rules live in the body; this is the number dump. All frame counts at 30 fps; combat windows are also whole sprite frames (1 sprite frame = 3 logic frames; boss windows even boss-frame counts).
+A.1 Player — physics (30 fps)
+Walk 240 px/s; sprint 330 px/s; dodge 480 px/s for 0.20 s (6 f = 2 sprite frames), fired on the press frame, ground or air — an air dodge cancels all vertical momentum (vsp set to 0, gravity suspended for the burst, the fall resumes from vsp = 0 with nothing restored), one air dodge per airtime; a ground dodge that leaves the ground resumes gravity on the first unsupported frame and grants no coyote; dodge cooldown 0.5 s anchored to dodge end; jump takeoff hsp clamp 330 px/s; dodge exit hsp clamp 330 px/s; accel 1800/1200 px/s²; friction 2200 px/s²; jump -560 px/s; gravity 1600 rising / 2000 falling; apex about 98 px (3 tiles); max fall 900 px/s; jump cut -200; coyote 0.10 s (3 f); jump buffer 0.12 s (4 f); attack buffer 0.07 s (2 f); i-frames 0.73 s (22 f); parry window 0.10 s (3 f = 1 sprite frame); dodge i-frames 6 f; hitstop 2 f; frozen_damage_mult 0.5. Guard: no movement and no jumping while held. Floor hitbox: floor_w 24 px, floor_overlap 1 px (illustrative baseline, R21), floor bonus b = floor_w − 2 × floor_overlap = 22 px.
+Derived reach (origin displacement; effective = + coyote + floor bonus; dodge chains at their best timing; the honest envelope): walk-jump 159 / 183 / 205 px (crosses 6 tiles); sprint-jump 219 / 252 / 274 (8); walk-jump + air dodge 290 / 314 / 336 (10); sprint-jump + air dodge 358 / 391 / 413 (12); walk-jump + air dodge + Phase Slash 450 / 474 / 496 (15); sprint-jump + air dodge + Phase Slash 518 / 551 / 573 (17). A clamped dodge-jump equals a sprint-jump; a ledge dodge is a dash and fall with no reach chain.
+A.2 Player — combat & economy
+HP 100 (125 with Reaper's Toll).
+Hard Light Sword: 18 dmg, MELEE, 4-way; timeline startup 3 f / active 3 f (f4–f6) / recovery 6 f (f7–f12) — sprite frames S1 / S2 / S3–S4; cycle 12 f = 0.40 s; dodge or guard cancel from recovery only; reach 48 px, up-slash 48 px above the top of the collision box; sustained 45 dps; poise 1x.
+Heavy weapons — special attacks on a held attack button (tap <= 9 f = sword only; hold past the 9 f threshold starts a commitment: swing absorbed into wind-up, then strike; no abort, no cancel, no interrupt; every input ignored; damage still applies without flinch or knockback; the chain deals sword 18 + heavy). Speed order greatsword, spear, mace; the mace is the heaviest:
+
+
+Damage
+Wind-up
+Swing + recovery
+Locked-in
+Press-to-strike
+Press-to-end
+Chain DPS
+Poise
+Hit shape
+Greatsword
+40
+12 f
+12 f
+24 f
+21 f
+33 f
+52.7
+2x
+animation-authored; hits all targets in its arc
+Spear
+35
+15 f
+15 f
+30 f
+24 f
+39 f
+40.8
+1.5x
+animation-authored; longest reach; pierces up to 2
+Mace
+60
+21 f
+18 f
+39 f
+30 f
+48 f
+48.8
+3x
+animation-authored; overhead + damage-free stun wave
+
+Mace shockwave: 0 damage; stuns non-boss enemies inside the wave's authored hitbox (primary included) for 1.0 s (30 f), then 3.0 s (90 f) immunity; bosses and enemies mid-heavy-attack unaffected; blocked by the Heavy Cyborg's shield. Damage landed by a moment after the press: 24 f window — sword 36 / greatsword 58 / spear 53 / mace 18; 60 f window — sword 90 / greatsword 94 / spear 89 / mace 96.
+Guard: ground-only, no movement or jumping while held (turning in place allowed), 10 stamina per blocked hit, breaks at 0 stamina (0.5 s stagger). Perfect parry: 3 f window on a guard raised from neutral; cancel-raised guard (from sword recovery) has no parry window; attack press cancels guard; guard needs a fresh press after an attack.
+Stamina: max 100; sprint drain 20/s; plain sprint (dodge unavailable) engages at >= 15; sprint via dodge costs 20 and continues if >= 15 remain; re-engage 30 after empty; dodge 20 (not fired below 20); guard block 10; regen 30/s after 0.5 s. Energy: max 100; regen 10/s; kill +15; Phase Slash 40; Time Freeze requires exactly 100 and drains to 0. Grenade 30 dmg, radius 72 px, fuse 1.1 s, carry 3; blasts deal 50% to frozen enemies. Phase Slash 25 dmg at 160 px, cooldown 2.0 s, i-frames 6 f, stops at the first solid (never crosses walls). Time Freeze 5 s / cooldown 30 s (bosses 2 x 2.5 s per attempt); frozen enemies and boss parts take 50% damage and no poise damage, stun, or knockback. Parry stun 2.0 s; knockback 220 px/s (decay 1200 px/s²); continuous hazards re-hit 0.77 s (23 f), max 2 hits per activation.
+A.3 Enemies
+Standard Cyborg: HP 60, poise 40, slash 15, heavy 25 (HEAVY, 0.8 s / 24 f wind-up), telegraph 0.5 s (15 f), speed 140. Ranger: HP 45, poise 30, ion bolt 10 (swept, §11.1), telegraph 0.6 s (18 f), speed 110. Grenadier: HP 70, poise 45, grenade 30 (friendly fire), telegraph 0.7 s (21 f), speed 100, 25% drop. Heavy Cyborg: HP 140, poise 80, bash 20, heavy 30 (HEAVY, 0.9 s / 27 f wind-up), telegraph 0.8 s (24 f), speed 80, 0.8 s shield-down window; shield blocks MELEE and the mace's STUN wave; turn lockout — no facing change during TELEGRAPH / ATTACK / RECOVER, 15 f to turn 180° otherwise. Heavy-attack trigger: player blocked (non-parry) the last 2 attacks, or 3 s in melee range — parries never increment it. Poise break stagger 1.2 s; poise regen 3 s. Placement: Rangers/Grenadiers always melee-reachable from the main path (§7.1). Enemy heavy attacks are uninterruptible (poise break deferred to the end of recovery; stun and parry cannot touch them).
+A.4 Bosses
+Traefin: HP 600; slash 18; ion bolts 12 (swept); kick 25 HEAVY (+20 wall bonus); wall-miss self 40 + 3.0 s stun + 10 s immunity. Mandaxx: HP 900; slash 22; combo 3 x 16 (telegraph 0.5 s / 15 f); stomp 20 SHOCKWAVE; boomerang 26 (520 out / 400 back px/s; flight cap 1.75 s; hard return 3.5 s); kick 25 HEAVY; stun 2.0 s; escapes at 20% with HP clamped at 1. Modal: shared 2600 + 350 local per hand (12 s disable); bolt 10; laser 20 (max 2 hits); sweep 8 s (2.8 out / 2.4 hold / 2.8 back, beams 24 px, 80 px/s, safe lanes 64 px); slam 20; spew 30; Head lower lobe 3.5 tiles + two 1.5-tile bone outcrops; conservative reach 146 px vs 112 px (34 px margin). Reaper: HP 800; slash 20; combo 3 x 14; bone 12; wave 18; harpoon punch 35 (swept) / miss stun 2.5 s; P2 lower lobe 3.5 tiles + two 1.5-tile outcrops (same margin). Echo Reaper: 560 HP, Phase 1 only.
+A.5 Afterlife & Overtime
+Overtime 30 s / +5 s and +15 energy per kill / cap 60 s / completion HP per rules O1-O3 (35 at a suppressed checkpoint; entry checkpoint after an exit full-heals); regression -2 levels clamped at 1 (keeps loadout incl. heavy weapon); 2-attempt block; Echo Reaper single attempt; death counter rules §9.5.
+A.6 World, arenas & clocks
+Base resolution 640 x 360 (20 x 11.25 tile view); logic 30 fps (LOGIC_HZ); animations 10 fps gameplay / 20 fps boss, driven by anim_tick; combat windows are whole sprite frames (boss windows even boss-frame counts). Traefin arena 20 x 11; Mandaxx 20 x 11; Modal 18 x 11 (2 bone outcrops); Reaper P1 20 x 11, P2 16 x 10 (cage walls 2 tiles/side -> 12-tile safe zone; 2 outcrops); 11-tile arenas carry a 4 px trim top and bottom (P2: 20/20). Chunk 20 x 23 tiles (640 x 736); generator grid 16 x 8. Traversal bands (validator-derived snapshot at the baseline floor hitbox): untagged main path <= 4; dead tiles 5, 6, 9, 10, 13; needs_boost 7-8; needs_sprint_dodge 11-12 (L2+); needs_phase 14 (L6+); >= 15 forbidden; every gated gap carries a recovery platform; needs_phase gaps >= 2 chunks apart; camera lookahead 192 px; climb <= 3 tiles per seam with platform stacks in U/D chunks; checkpoint every 5 main-path chunks; 15 levels (12 generated, 3 arenas). Swept collision mandatory at or above 16 px/step (480 px/s). Perf frame 33.4 ms (step 8, draw 12).
+
+Appendix B — Reachability Validator (simulation spec)
+The traversal bands in §8.4 are a derivation snapshot. The validator never reads them — it re-derives the envelope from tuning.json by simulation, so a physics tweak cannot silently invalidate AC21. This appendix is the specification for that validator.
+B.1 Inputs
+Everything the simulation uses comes from global.cfg (loaded from tuning.json, §11.6) — the same file that drives the game:
+floor_w, floor_overlap    floor hitbox width and minimum support overlap (px)   [24, 1 — R21]
+walk, sprint, dodge_speed horizontal speeds (px/s)
+dodge_time                dodge duration (s) — gravity suspended inside (air dodge only)
+jump_v                    jump velocity (px/s, negative)
+g_rise, g_fall            gravity constants (px/s²)
+vsp_max                   terminal fall speed (px/s)
+jump_cut_v                variable-jump cut clamp (px/s)
+coyote                    coyote window (s) — carried horizontal speed after a walking/sprinting ledge exit
+air_accel                 air acceleration toward the latched takeoff speed (px/s²)   [1200]
+takeoff_clamp             jump takeoff hsp clamp (px/s)      [330]
+dodge_exit_clamp          dodge exit hsp clamp (px/s)        [330]
+phase_distance            Phase Slash teleport (px)          [160]
+margin                    band safety margin per side (px)   [16]
+TILE                      32
+B.2 Simulated primitives
+Each primitive replays a real arc against a flat gap at equal takeoff/landing height, using the true floor hitbox and tile collision — not closed-form math:
+Floor geometry. Takeoff: the origin may stand up to floor_w/2 − floor_overlap past the ledge edge. Landing: the leading edge must reach gap + floor_overlap. The net floor bonus is b = floor_w − 2 × floor_overlap.
+sim_jump(speed) — full-hold jump arc at speed: rise under g_rise, fall under g_fall to return to takeoff height; horizontal distance = speed x airtime.
+sim_coyote(speed) — the same arc launched coyote seconds after leaving a ledge by walking or sprinting (horizontal speed carried at full value during the window).
+sim_air_dodge(arc) — inserts the dodge at the best legal logic frame of the arc (the search tries every frame; one dodge per airtime, subject to the end-anchored cooldown). The dodge cancels all vertical momentum: vsp is set to 0 and gravity is suspended for dodge_time while horizontal runs at dodge_speed; afterwards hsp = min(dodge_speed, dodge_exit_clamp) returns to the latched takeoff speed at air_accel, and the fall resumes from vsp = 0 (nothing is restored). A dodge during the rise ends the rise (a loss of reach); a dodge during the fall resets the fall speed (a gain of airtime). The best timing at the baseline constants is about 0.22 s after the apex. Air speed model: hsp in the air is latched to the takeoff speed class (walk 240 or sprint 330).
+sim_phase(chain) — appends phase_distance at the chain's end position (hsp preserved); the slash stops at the first solid, so it never crosses a wall.
+sim_ledge_dodge() — a ground dodge that leaves the ground: dash for the remainder of the burst, gravity on from the first unsupported frame, no coyote, jump input buffered until landing, air dodge available only after the end-anchored cooldown.
+sim_dodge_jump() — ground dodge held into a jump: takeoff hsp clamped to takeoff_clamp, so the result equals the sprint-jump chain by construction (the simulation verifies the clamp rather than trusting it).
+B.3 Chain enumeration and current derivation
+Reach is origin displacement; effective reach adds coyote and the floor bonus (b = 22 px at the baseline):
+Chain
+Simulation
+Reach (+ coyote)
+Effective (+ b)
+Crosses
+CH0 walk
+sim_coyote(walk)
+183 px
+205 px
+6 tiles
+CH1 sprint
+sim_coyote(sprint)
+252 px
+274 px
+8 tiles
+CH2 walk + dodge
+CH0 + sim_air_dodge
+314 px
+336 px
+10 tiles
+CH3 sprint + dodge
+CH1 + sim_air_dodge
+391 px
+413 px
+12 tiles
+CH4 walk + dodge + phase
+CH2 + sim_phase
+474 px
+496 px
+15 tiles
+CH5 sprint + dodge + phase
+CH3 + sim_phase
+551 px
+573 px
+17 tiles
+CH6 ledge dodge
+sim_ledge_dodge()
+dash (96 px) then fall
+must stay <= CH0
+never a jump chain
+CH7 dodge-jump
+sim_dodge_jump()
+= CH3 (verified)
+= CH3
+12 tiles
+
+B.4 Band derivation and assertions
+Tag semantics and sets. Each tag has an allowed chain set A (chains the tag assumes the player has) and a disallowed set D (chains the tag must defeat):
+Tag
+Allowed A
+Disallowed D
+needs_boost
+CH1, CH2, CH3, CH4, CH5
+CH0
+needs_sprint_dodge
+CH3, CH4, CH5
+CH0, CH1, CH2
+needs_phase
+CH4, CH5
+CH0, CH1, CH2, CH3
+
+Band rule. A gap of n tiles is legal for a tag when 32n > max effective(D) + margin and 32n <= min effective(A) − margin. Applying it to the table above:
+needs_boost: 32n > 205 + 16 = 221 and 32n <= 274 − 16 = 258, so n = 7-8.
+needs_sprint_dodge: 32n > 336 + 16 = 352 and 32n <= 413 − 16 = 397, so n = 11-12.
+needs_phase: 32n > 413 + 16 = 429 and 32n <= 496 − 16 = 480 (the upper bound, 479.9 px at unrounded values, excludes 15 tiles = 480 px), so n = 14.
+Dead tiles are the widths between 5 and 14 that fall in no band: 5, 6, 9, 10, 13. Gaps of 15 or more are forbidden. The authored untagged main-path limit is 4 tiles (CH0 would cross 5 with margin).
+Assertions (per generation, 100 seeds):
+For every main-path gap: width <= 4 x TILE when untagged; when tagged, the tag's band rule holds against the live simulation (tag honesty in both directions — the weakest allowed chain crosses it, the strongest disallowed chain does not).
+Tag/level gating: needs_sprint_dodge only at L2+; needs_phase only at L6+.
+No gap lands on a dead tile; no gap >= 15 x TILE anywhere on the main path.
+Every gated gap's pit contains a 2-tile recovery platform on the failure fall arc; a flood fill from the platform to the takeoff ledge using walk/climb moves only must succeed.
+Consecutive needs_phase gaps are >= 2 chunks apart on the main path.
+Every Ranger/Grenadier marker's platform passes the melee-reachability check: connected to a mandatory-path platform through CH0 terrain only (no gated gap).
+CH6 negative assertion: a ledge-dodge chain never crosses a gap CH0 cannot, and no chain that starts with a dodge-initiated ledge exit exceeds CH0's effective reach.
+Climb <= 3 tiles per seam; U/D chunks contain platform stacks.
+Door masks weld across all seams; every spur is bidirectionally reachable.
+Marker sanity: no enemy spawn inside solid, no marker beyond chunk bounds.
+Output: per-seed pass/fail with the offending gap, its simulated crossing table (which chains clear it), and the tuning constants used — a physics-tweak regression report, not just a red/green flag. A change to any physics or floor-hitbox constant regenerates the band table and flags every tagged slot whose tag no longer holds.
+B.5 Implementation notes
+The simulator reuses the game's own collision routines (scr_move_h_collide / scr_move_v_collide) against a scratch tilemap of the generated chunk chain — the same code the player runs, so "the validator says it's crossable" and "the player can cross it" are the same statement.
+Determinism: the validator runs on the gen_rng stream after generation, consuming no gameplay-relevant RNG draws.
+It runs in CI on every tuning.json change (AC21 in the M1c exit gate), and its per-gap crossing table is written next to templates.json for level designers.
