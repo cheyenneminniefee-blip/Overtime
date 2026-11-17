@@ -2,7 +2,7 @@
 function scr_ranger_enemy_attack() {
     // Release frame — the cooldown gate prevents double-fire if frame 3
     // holds for multiple steps
-    if (floor(image_index) == 3 && attack_cooldown <= 0) {
+    if (floor(image_index) == 5 && attack_cooldown <= 0) {
         if (instance_exists(obj_player)) {
             var _muzzle_y = y - 12;
             var _bolt = instance_create_layer(x + facing_dir * 12, _muzzle_y, layer, obj_ion_bolt);
