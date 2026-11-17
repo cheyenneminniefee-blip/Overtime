@@ -39,6 +39,7 @@
     {"id":{"name":"obj_enemy_melee_hitbox","path":"objects/obj_enemy_melee_hitbox/obj_enemy_melee_hitbox.yy",},},
     {"id":{"name":"obj_enemy_melee","path":"objects/obj_enemy_melee/obj_enemy_melee.yy",},},
     {"id":{"name":"obj_enemy_parent","path":"objects/obj_enemy_parent/obj_enemy_parent.yy",},},
+    {"id":{"name":"obj_explosion","path":"objects/obj_explosion/obj_explosion.yy",},},
     {"id":{"name":"obj_grenade_enemy","path":"objects/obj_grenade_enemy/obj_grenade_enemy.yy",},},
     {"id":{"name":"obj_grenade","path":"objects/obj_grenade/obj_grenade.yy",},},
     {"id":{"name":"obj_ion_bolt","path":"objects/obj_ion_bolt/obj_ion_bolt.yy",},},

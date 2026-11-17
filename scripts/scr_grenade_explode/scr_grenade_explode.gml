@@ -36,6 +36,11 @@ function scr_grenade_explode(_id) {
         }
     }
 
+    // --- BLAST VISUAL ---
+    // 64 px sprite, top-left origin: spawn at the scaled top-left so the
+    // puff is centered on the blast point and grows to the 72 px radius
+    instance_create_layer(_bx - 48, _by - 48, layer, obj_explosion);
+
     with (_id) {
         instance_destroy();
     }
