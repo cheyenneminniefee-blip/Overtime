@@ -19,10 +19,14 @@ function scr_melee_enemy_run() {
     // (56px reach) still connect.
     var _attack_range = 60;
     var _dx = target_player.x - x;
-    if (abs(_dx) <= _attack_range) {
-        hspd = 0;
+    var _adx = abs(_dx);
+    if (_adx < _attack_range) {
+        // Already inside the player's body zone — step back out to the
+        // stop line instead of standing overlapped.
+        var _dir = _dx != 0 ? sign(_dx) : -facing_dir;
+        hspd = -_dir * run_spd;
     } else {
-        hspd = sign(_dx) * min(abs(_dx) - _attack_range, run_spd);
+        hspd = sign(_dx) * min(_adx - _attack_range, run_spd);
     }
 
     if (_dist <= _attack_range && attack_cooldown <= 0) {
