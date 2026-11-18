@@ -147,6 +147,8 @@
     {"id":{"name":"spr_grenade_enemy_walk","path":"sprites/spr_grenade_enemy_walk/spr_grenade_enemy_walk.yy",},},
     {"id":{"name":"spr_grenade","path":"sprites/spr_grenade/spr_grenade.yy",},},
     {"id":{"name":"spr_gun","path":"sprites/spr_gun/spr_gun.yy",},},
+    {"id":{"name":"spr_health_border","path":"sprites/spr_health_border/spr_health_border.yy",},},
+    {"id":{"name":"spr_health","path":"sprites/spr_health/spr_health.yy",},},
     {"id":{"name":"spr_ion_bolt","path":"sprites/spr_ion_bolt/spr_ion_bolt.yy",},},
     {"id":{"name":"spr_melee_enemy_attack_hb","path":"sprites/spr_melee_enemy_attack_hb/spr_melee_enemy_attack_hb.yy",},},
     {"id":{"name":"spr_melee_enemy_attack_nm","path":"sprites/spr_melee_enemy_attack_nm/spr_melee_enemy_attack_nm.yy",},},
