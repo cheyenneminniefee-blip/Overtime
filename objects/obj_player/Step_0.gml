@@ -78,7 +78,9 @@ if (hp <= 0) && (!is_overtime) {
 if (is_overtime) {
     overtime_timer -= 1;
     if (overtime_timer <= 0) {
-        game_restart();
+        // Timer expiry is True Death (PRD 5.1) — the Afterlife arrives later
+        scr_player_true_death();
+        exit;
     }
 }
 

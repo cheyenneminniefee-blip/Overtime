@@ -5,10 +5,11 @@ function scr_player_take_damage(_amount, _from_x) {
     if (invuln_timer > 0) return;                            // mercy i-frames
     if (state == player_states.dodge && dodge_timer > 0) return; // dodge i-frames
 
-    // --- OVERTIME: any damage is instant true death (PRD) ---
+    // --- OVERTIME: any unguarded damage is instant True Death (PRD 5.1) ---
+    // Blocked and parried hits never reach this script, so they never count;
+    // mercy and dodge i-frames are gated above
     if (is_overtime) {
-        // TODO: route into the Afterlife system when you build it
-        game_restart();
+        scr_player_true_death();
         return;
     }
 

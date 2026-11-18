@@ -11,6 +11,7 @@ function scr_shield_enemy_attack() {
         attack_hitbox.sprite_index = spr_melee_enemy_attack_hb;
         attack_hitbox.image_index = image_index;
         attack_hitbox.image_xscale = facing_dir;
+        attack_hitbox.damage = 20;   // Shield bash (PRD 7.2)
     } else if (instance_exists(attack_hitbox)) {
         instance_destroy(attack_hitbox);
         attack_hitbox = noone;

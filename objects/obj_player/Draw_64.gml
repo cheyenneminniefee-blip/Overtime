@@ -1,8 +1,43 @@
-/// obj_player — Draw GUI: stamina (amber, top) and energy (cyan) meters, bottom-left
+/// obj_player — Draw GUI: health (top-left, segmented), Overtime countdown
+/// (top-center), stamina (amber) and energy (cyan) meters (bottom-left)
 var _gh = display_get_gui_height();
+var _gw = display_get_gui_width();
 var _margin = 16;
 var _gap = 20;
 var _scale =3;
+
+// --- OVERTIME COUNTDOWN (PRD 5.1: replaces the HP bar, top-center) ---
+if (is_overtime) {
+    var _ot_low = (overtime_timer < 300);   // pulse red below 5 s
+    draw_set_color(_ot_low ? c_red : c_white);
+    draw_set_alpha(_ot_low ? 0.55 + 0.45 * sin(overtime_timer * 0.5) : 1);
+    draw_set_halign(fa_center);
+    draw_text_transformed(_gw / 2, _margin, "OVERTIME  " + string_format(overtime_timer / 60, 0, 1), 2, 2, 0);
+    draw_set_halign(fa_left);
+    draw_set_alpha(1);
+    draw_set_color(c_white);
+}
+
+// --- HP BAR (PRD 12.1: top-left, segmented 25 HP per segment) ---
+if (!is_overtime) {
+    var _hbw = sprite_get_width(spr_health_border);
+    var _hxoff = sprite_get_xoffset(spr_health_border);
+    var _hyoff = sprite_get_yoffset(spr_health_border);
+    var _hinner_w = _hbw - 2 * _hxoff;
+    var _hinner_h = sprite_get_height(spr_health_border) - 2 * _hyoff;
+    var _hfill_h = sprite_get_height(spr_health);
+
+    var _segs = hp_max / HEALTH_SEGMENT;
+    var _seg_gap = 4;
+    var _seg_w = (_hinner_w * _scale - (_segs - 1) * _seg_gap) / _segs;
+
+    for (var _si = 0; _si < _segs; _si++) {
+        var _seg_fill = clamp(hp - _si * HEALTH_SEGMENT, 0, HEALTH_SEGMENT) / HEALTH_SEGMENT;
+        draw_sprite_ext(spr_health, 0, _margin + _si * (_seg_w + _seg_gap), _margin,
+            _seg_w * _seg_fill, (_hinner_h / _hfill_h) * _scale, 0, c_white, 1);
+    }
+    draw_sprite_ext(spr_health_border, 0, _margin, _margin, _scale, _scale, 0, c_white, 1);
+}
 
 // Border geometry: the border's origin sits on its inner fill area's top-left,
 // so drawing both sprites at the same anchor point aligns them (PRD HUD setup)

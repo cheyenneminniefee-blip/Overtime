@@ -22,7 +22,8 @@ sprint_buffer=0;
 jump_spd = -7;
 
 // Combat And Ability Variables
-hp = 3;
+hp = HP_MAX;             // PRD 4.2: max HP 100
+hp_max = HP_MAX;
 is_overtime = false;
 overtime_timer = 0;
 phase_slash_cooldown = 0;      // 2.0 s between Phase Slashes, charged only on a real teleport (PRD 5.3)

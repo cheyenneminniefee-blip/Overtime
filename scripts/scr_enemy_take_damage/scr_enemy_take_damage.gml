@@ -39,9 +39,9 @@ function scr_enemy_take_damage(_amount, _from_x, _bypass_shield) {
     // --- 3. DEATH ---
     if (hp <= 0) {
         if (instance_exists(obj_player)) {
-            // PRD: Overtime — each enemy kill buys +5 seconds
+            // PRD: Overtime — each enemy kill buys +5 seconds, capped at 60 s (AC4)
             if (obj_player.is_overtime) {
-                obj_player.overtime_timer += 300;
+                obj_player.overtime_timer = min(obj_player.overtime_timer + 300, 3600);
             }
             // PRD 5.6: kills bank +15 energy (also during Overtime)
             obj_player.energy = min(obj_player.energy_max, obj_player.energy + 15);
