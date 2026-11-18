@@ -166,6 +166,7 @@
     {"id":{"name":"spr_player_air_attack","path":"sprites/spr_player_air_attack/spr_player_air_attack.yy",},},
     {"id":{"name":"spr_player_block_nm","path":"sprites/spr_player_block_nm/spr_player_block_nm.yy",},},
     {"id":{"name":"spr_player_block","path":"sprites/spr_player_block/spr_player_block.yy",},},
+    {"id":{"name":"spr_player_death","path":"sprites/spr_player_death/spr_player_death.yy",},},
     {"id":{"name":"spr_player_dodge_nm","path":"sprites/spr_player_dodge_nm/spr_player_dodge_nm.yy",},},
     {"id":{"name":"spr_player_dodge","path":"sprites/spr_player_dodge/spr_player_dodge.yy",},},
     {"id":{"name":"spr_player_down_attack_hb","path":"sprites/spr_player_down_attack_hb/spr_player_down_attack_hb.yy",},},
