@@ -13,8 +13,19 @@ function scr_melee_enemy_run() {
         return;
     }
 
-    var attack_range = 35;
-    if (_dist <= attack_range && attack_cooldown <= 0) {
+    // Stop in front of the player instead of running into them.
+    // Run sprite visual half-width ~25px + player 32px mask half-width:
+    // 60px center-to-center keeps the bodies apart while the sword masks
+    // (56px reach) still connect.
+    var _attack_range = 60;
+    var _dx = target_player.x - x;
+    if (abs(_dx) <= _attack_range) {
+        hspd = 0;
+    } else {
+        hspd = sign(_dx) * min(abs(_dx) - _attack_range, run_spd);
+    }
+
+    if (_dist <= _attack_range && attack_cooldown <= 0) {
         hspd = 0;
         state = enemy_states.attack;
         image_index = 0;
