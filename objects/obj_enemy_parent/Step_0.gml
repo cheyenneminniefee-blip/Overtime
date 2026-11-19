@@ -28,7 +28,26 @@ if (state == enemy_states.attack) {
     move = 0;
 }
 
-hspd = move * ((state == enemy_states.run) ? run_spd : walk_spd);
+// --- This-Frame Movement ---
+// The state scripts run AFTER this physics block, so any run-state stop/
+// retreat math done in scr_*_run would be stomped by the assignment below
+// on the next frame before it ever moved the enemy. It has to live here.
+if (state == enemy_states.run && instance_exists(target_player) && stop_range > 0) {
+    var _dx = target_player.x - x;
+    var _adx = abs(_dx);
+    if (_adx < stop_range) {
+        // Inside the player's body zone — back straight out to the stop line.
+        // (-facing_dir covers the perfectly-stacked case where sign() is 0.)
+        move = (_dx != 0) ? -sign(_dx) : -facing_dir;
+        hspd = move * run_spd;
+    } else {
+        // Approach the stop line: full speed when far, exactly the remaining
+        // overshoot when close — never crosses into the body zone.
+        hspd = sign(_dx) * min(_adx - stop_range, run_spd);
+    }
+} else {
+    hspd = move * ((state == enemy_states.run) ? run_spd : walk_spd);
+}
 vspd = vspd + grv;
 
 var grounded = place_meeting(x, y + 1, obj_solid);

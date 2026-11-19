@@ -15,6 +15,7 @@ vspd = 0;
 grv = 0.35;
 walk_spd = 1.5;
 run_spd = 3.5;                 // Only the melee enemy ever enters run
+stop_range = -1;               // Body-stop radius; set > 0 by enemies that keep their distance (obj_enemy_melee = 60)
 
 // --- Combat And State Variables ---
 hp = 10;

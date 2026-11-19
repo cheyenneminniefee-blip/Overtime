@@ -1,4 +1,8 @@
 // --- MELEE RUN STATE ---
+// Movement toward/away from the player (stop line + retreat) is handled by
+// the parent Step via stop_range — by the time this script runs, this
+// frame's velocity is already committed, so hspd writes here are ignored.
+// This script only decides when to swing.
 function scr_melee_enemy_run() {
     if (!instance_exists(target_player)) {
         state = enemy_states.walk;
@@ -13,24 +17,7 @@ function scr_melee_enemy_run() {
         return;
     }
 
-    // Stop in front of the player instead of running into them.
-    // Run sprite visual half-width ~25px + player 32px mask half-width:
-    // 60px center-to-center keeps the bodies apart while the sword masks
-    // (56px reach) still connect.
-    var _attack_range = 60;
-    var _dx = target_player.x - x;
-    var _adx = abs(_dx);
-    if (_adx < _attack_range) {
-        // Already inside the player's body zone — step back out to the
-        // stop line instead of standing overlapped.
-        var _dir = _dx != 0 ? sign(_dx) : -facing_dir;
-        hspd = -_dir * run_spd;
-    } else {
-        hspd = sign(_dx) * min(_adx - _attack_range, run_spd);
-    }
-
-    if (_dist <= _attack_range && attack_cooldown <= 0) {
-        hspd = 0;
+    if (_dist <= stop_range && attack_cooldown <= 0) {
         state = enemy_states.attack;
         image_index = 0;
         legs_image_index = 0;

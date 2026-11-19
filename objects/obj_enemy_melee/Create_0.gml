@@ -5,6 +5,11 @@ walk_spd = 1.5;
 run_spd = 3.5;
 sight_range = 450;
 
+// Keep this distance from the player: run sprite visual half-width ~25px +
+// player 32px mask half-width. The parent Step retreats to this line if the
+// enemy ends up inside it, and scr_melee_enemy_run swings from it.
+stop_range = 60;
+
 // --- State Sprite Sets ---
 spr_idle      = spr_melee_enemy_idle;      spr_idle_nm  = spr_melee_enemy_idle_nm;
 spr_walk      = spr_melee_enemy_walk;      spr_walk_nm  = spr_melee_enemy_walk_nm;
