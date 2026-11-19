@@ -83,3 +83,22 @@ if (has_grenades) {
         draw_sprite_ext(spr_grenade, 0, _margin + 8 + _i * 20, _pip_y, 2, 2, 0, c_white, _pip_alpha);
     }
 }
+
+// --- FREEZE ICON (PRD 12.1: bottom-right; lights only when Freeze is ready) ---
+// Ready = energy at exactly full AND the 30 s cooldown clear AND not already
+// frozen (PRD 5.2). Unlit otherwise. The ready glow doubles as the meter cue,
+// and its flash doubles as the fizzle feedback (12.3: sound + icon, not hue).
+var _iw = sprite_get_width(spr_freeze_icon) * 2;
+var _ih = sprite_get_height(spr_freeze_icon) * 2;
+var _icon_ready = (energy >= energy_max)
+    && instance_exists(obj_time_domain)
+    && obj_time_domain.freeze_cd_timer <= 0
+    && (global.time_state == TIME.RUN);
+var _icon_x = _gw - _margin - _iw / 2;
+var _icon_y = _gh - _margin - _ih / 2;
+if (_icon_ready) {
+    var _ready_pulse = 0.75 + 0.25 * sin(current_time / 150);   // gentle ready cue
+    draw_sprite_ext(spr_freeze_icon, 0, _icon_x, _icon_y, 2, 2, 0, FREEZE_TINT, _ready_pulse);
+} else {
+    draw_sprite_ext(spr_freeze_icon, 0, _icon_x, _icon_y, 2, 2, 0, c_dkgray, 0.3);
+}

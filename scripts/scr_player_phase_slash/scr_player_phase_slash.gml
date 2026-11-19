@@ -52,7 +52,9 @@ function scr_player_phase_slash() {
                 if (!_already) {
                     array_push(phase_hits, _hit);
                     with (_hit) {
-                        scr_enemy_take_damage(1, _px, true);
+                        // 25 damage, type PHASE — pierces shields via the bypass
+                        // flag (PRD 5.3)
+                        scr_enemy_take_damage(25, _px, true);
                     }
                 }
             }
