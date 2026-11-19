@@ -17,7 +17,7 @@ function scr_melee_enemy_run() {
         return;
     }
 
-    if (_dist <= stop_range && attack_cooldown <= 0) {
+    if (_dist <= attack_range && attack_cooldown <= 0) {
         state = enemy_states.attack;
         image_index = 0;
         legs_image_index = 0;
