@@ -24,7 +24,7 @@ function scr_melee_enemy_run() {
     var _ldx = target_player.x - x;
     if (_ldx != 0) facing_dir = sign(_ldx);
 
-    if (_dist <= stop_range && attack_cooldown <= 0) {
+    if (_dist <= attack_range && attack_cooldown <= 0) {   // swings from 60; retreat/idle line is stop_range (55)
         state = enemy_states.attack;
         image_index = 0;
         legs_image_index = 0;
