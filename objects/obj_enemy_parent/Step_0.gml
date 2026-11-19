@@ -111,12 +111,23 @@ switch (state) {
         break;
 
     case enemy_states.run:
-        sprite_index      = spr_run;
-        normal_map        = spr_run_nm;
-        legs_sprite_index = spr_enemy_legs_run;
-        leg_normal_map    = spr_enemy_legs_run_nm;
-        legs_image_speed  = 1;
-        image_index       = legs_image_index;
+        // Parked at the body-stop line (within projectile reach of the
+        // player but not approaching): idle pose instead of running in place.
+        if (stop_range > 0 && instance_exists(target_player) && abs(target_player.x - x) <= stop_range + 2) {
+            sprite_index      = spr_idle;
+            normal_map        = spr_idle_nm;
+            legs_sprite_index = spr_enemy_legs_idle;
+            leg_normal_map    = spr_enemy_legs_idle_nm;
+            legs_image_speed  = 1;
+            image_index       = legs_image_index;
+        } else {
+            sprite_index      = spr_run;
+            normal_map        = spr_run_nm;
+            legs_sprite_index = spr_enemy_legs_run;
+            leg_normal_map    = spr_enemy_legs_run_nm;
+            legs_image_speed  = 1;
+            image_index       = legs_image_index;
+        }
         break;
 
     case enemy_states.attack:
