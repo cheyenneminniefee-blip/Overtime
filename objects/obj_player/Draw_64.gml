@@ -62,16 +62,21 @@ draw_sprite_ext(spr_stamina, 0, _margin, _sy, _sratio * _inner_w * _scale, (_inn
 draw_sprite_ext(spr_stamina_border, 0, _margin, _sy, _scale, _scale, 0, c_white, 1);
 
 // --- ENERGY (cyan) — fill first, border on top ---
-var _eratio = energy / energy_max;
-draw_sprite_ext(spr_energy, 0, _margin, _ey, _eratio * _inner_w * _scale, (_inner_h / _fill_h) * _scale, 0, c_white, 1);
-draw_sprite_ext(spr_energy_border, 0, _margin, _ey, _scale, _scale, 0, c_white, 1);
+// PRD 12.1: hidden until the first energy unlock (has_phase_slash OR
+// has_freeze) — Act 1 never shows a dead meter; the bar appears at the
+// L6 Phase Slash pickup
+if (has_phase_slash || has_freeze) {
+    var _eratio = energy / energy_max;
+    draw_sprite_ext(spr_energy, 0, _margin, _ey, _eratio * _inner_w * _scale, (_inner_h / _fill_h) * _scale, 0, c_white, 1);
+    draw_sprite_ext(spr_energy_border, 0, _margin, _ey, _scale, _scale, 0, c_white, 1);
 
-// --- FREEZE FIZZLE (PRD 5.2: rejected activation pulses the meter) ---
-// Icy-blue pulse over the energy border — the freeze-associated hue, not the
-// damage flash (PRD 12.3)
-if (freeze_fizzle_timer > 0) {
-    var _fizzle_alpha = 0.5 + 0.5 * sin(freeze_fizzle_timer * 1.5);
-    draw_sprite_ext(spr_energy_border, 0, _margin, _ey, _scale, _scale, 0, FREEZE_TINT, _fizzle_alpha);
+    // --- FREEZE FIZZLE (PRD 5.2: rejected activation pulses the meter) ---
+    // Icy-blue pulse over the energy border — the freeze-associated hue, not the
+    // damage flash (PRD 12.3)
+    if (freeze_fizzle_timer > 0) {
+        var _fizzle_alpha = 0.5 + 0.5 * sin(freeze_fizzle_timer * 1.5);
+        draw_sprite_ext(spr_energy_border, 0, _margin, _ey, _scale, _scale, 0, FREEZE_TINT, _fizzle_alpha);
+    }
 }
 
 // --- GRENADE PIPS (PRD 12.1: bottom-left, under stamina) ---
@@ -101,4 +106,34 @@ if (_icon_ready) {
     draw_sprite_ext(spr_freeze_icon, 0, _icon_x, _icon_y, 2, 2, 0, FREEZE_TINT, _ready_pulse);
 } else {
     draw_sprite_ext(spr_freeze_icon, 0, _icon_x, _icon_y, 2, 2, 0, c_dkgray, 0.3);
+}
+
+// --- PHASE SLASH ICON + COOLDOWN SWEEP (PRD 12.1: bottom-right, one slot
+// left of the Freeze icon) --- Lit violet when the 2 s recharge is clear AND
+// the teleport is affordable; while recharging, a dark veil covers the
+// remaining-cooldown share of the icon from the top and recedes as it
+// refills, with an accent line at the sweep edge. Dim gray when recharged
+// but too low on energy (same "not ready" read as the unlit Freeze icon).
+var _pw = sprite_get_width(spr_phase_cooldown_icon) * 2;
+var _ph = sprite_get_height(spr_phase_cooldown_icon) * 2;
+var _ps_x = _icon_x - _iw - 8;   // keep the same baseline as the Freeze icon
+var _ps_top = _icon_y - _ph / 2;
+if (phase_slash_cooldown <= 0 && energy >= phase_slash_cost) {
+    draw_sprite_ext(spr_phase_cooldown_icon, 0, _ps_x, _icon_y, 2, 2, 0, PHASE_TINT, 1);
+} else {
+    draw_sprite_ext(spr_phase_cooldown_icon, 0, _ps_x, _icon_y, 2, 2, 0, c_dkgray, 0.3);
+    if (phase_slash_cooldown > 0) {
+        var _rfrac = clamp(phase_slash_cooldown / phase_slash_cd_max, 0, 1);
+        var _veil_h = _ph * _rfrac;
+        draw_set_color(c_black);
+        draw_set_alpha(0.65);
+        draw_rectangle(_ps_x - _pw / 2, _ps_top, _ps_x + _pw / 2, _ps_top + _veil_h, false);
+        if (_veil_h > 0 && _veil_h < _ph) {
+            draw_set_color(PHASE_TINT);
+            draw_set_alpha(0.9);
+            draw_rectangle(_ps_x - _pw / 2, _ps_top + _veil_h - 2, _ps_x + _pw / 2, _ps_top + _veil_h, false);
+        }
+        draw_set_alpha(1);
+        draw_set_color(c_white);
+    }
 }

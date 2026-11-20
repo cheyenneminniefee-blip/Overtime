@@ -286,7 +286,7 @@ if (key_attack) {
         
         // 1. HIGH PRIORITY SPRINT CHECK: Phase Slash (Works Grounded AND Airborne!)
         // If holding sprint and moving horizontally, execute Phase Slash regardless of altitude
-        if (hspd != 0 && key_sprint && phase_slash_cooldown <= 0 && energy >= 40) {
+        if (hspd != 0 && key_sprint && phase_slash_cooldown <= 0 && energy >= phase_slash_cost) {
             var _aim_move = key_right - key_left;
             if (_aim_move != 0) facing_dir = sign(_aim_move);
             state = player_states.phase_slash;
@@ -332,7 +332,7 @@ if (key_attack) {
                 }
             }
             // 1. Check if sprinting to execute Phase Slash
-            else if (hspd != 0 && key_sprint && state!=player_states.wall_hang && phase_slash_cooldown <= 0 && energy >= 40) {
+            else if (hspd != 0 && key_sprint && state!=player_states.wall_hang && phase_slash_cooldown <= 0 && energy >= phase_slash_cost) {
                 var _aim_move = key_right - key_left;
                 if (_aim_move != 0) facing_dir = sign(_aim_move);
                 state = player_states.phase_slash;

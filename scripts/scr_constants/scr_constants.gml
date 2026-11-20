@@ -45,6 +45,10 @@
 #macro FROZEN_DAMAGE_MULT 0.5
 #macro FREEZE_TINT make_color_rgb(120, 190, 255)
 
+// Phase Slash accent (PRD 12.1 HUD icon + cooldown sweep marker) — violet,
+// distinct from the energy cyan and the freeze icy blue.
+#macro PHASE_TINT make_color_rgb(190, 120, 255)
+
 // Player HP (PRD 4.2: max 100) and the HUD segmentation (PRD 12.1: 25 HP per segment)
 #macro HP_MAX 100
 #macro HEALTH_SEGMENT 25

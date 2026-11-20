@@ -11,6 +11,8 @@ energy_max = 100;
 grenades = 3;
 grenades_max = 3;
 has_grenades = true;   // Debug-on: the PRD unlock lands at the L2 exit (M1c)
+has_phase_slash = true;   // Debug-on: PRD unlock is the L6 Phase Slash pickup (M1c/M2) — gates the energy HUD (12.1)
+has_freeze = true;        // Debug-on: the energy bar appears when either ability is unlocked (PRD 12.1)
 
 // Character Physics Variables
 hspd = 0;
@@ -28,6 +30,7 @@ is_overtime = false;
 overtime_timer = 0;
 phase_slash_cooldown = 0;      // 2.0 s between Phase Slashes, charged only on a real teleport (PRD 5.3)
 phase_slash_cd_max = 120;
+phase_slash_cost = 40;         // 40 energy per real teleport (PRD 5.3, 5.6)
 phase_slash_range = 160;       // 5 tiles (PRD 5.3)
 phase_teleported = false;
 
