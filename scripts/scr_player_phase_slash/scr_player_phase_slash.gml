@@ -12,6 +12,18 @@ function scr_player_phase_slash() {
     legs_image_speed = 0;
 
     // --- 2. THE TIMED TELEPORT MECHANIC ---
+    // VFX LEAD-IN (visual only, no gameplay coupling): the slash graphic
+    // spawns the step before the teleport's image_index >= 6 condition first
+    // fires — i.e. exactly one frame before the strike — then plays itself
+    // out independently (obj_phase_slash_vfx destroys itself at anim end).
+    // The window is one step wide and can only pass once before phase_teleported
+    // flips, so no guard flag is needed. Player-owned: it animates during a
+    // Time Freeze (no gate).
+    if (!phase_teleported && image_index < 6
+    &&  image_index + sprite_get_speed(sprite_index) / game_get_speed(gamespeed_fps) >= 6) {
+        var _vfx = instance_create_layer(x, y, layer, obj_phase_slash_vfx);
+        _vfx.image_xscale = facing_dir;   // flip-safe either way: a symmetric sprite is unchanged
+    }
     if (image_index < 6) {
         hspd = 0;
         vspd = 0;
