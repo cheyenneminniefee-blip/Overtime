@@ -20,8 +20,13 @@ var move = key_right - key_left;
     var is_at_ledge = !position_meeting(side_x, bbox_top - 10, obj_solid);
     
     // 3. CONTEXTUAL JUMP MECHANICAL INPUT
+    // The vertical climb jump is now the ledge vault, EXTENDED: it also fires
+    // at any height when the player holds the input toward the wall they are
+    // climbing (move == facing_dir). Held direction other than into the wall
+    // (neutral or away) keeps the classic horizontal wall kick.
     if (key_jump) {
-        if (is_at_ledge) {
+        var _move_held = key_right - key_left;
+        if (is_at_ledge || _move_held == facing_dir) {
             vspd = -7.5;             
             hspd = facing_dir * 3.5;  
             wall_jump_timer = 14; 
