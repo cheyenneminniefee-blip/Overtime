@@ -109,6 +109,7 @@
     {"id":{"name":"scr_ranger_enemy_attack","path":"scripts/scr_ranger_enemy_attack/scr_ranger_enemy_attack.yy",},},
     {"id":{"name":"scr_ranger_enemy_walk","path":"scripts/scr_ranger_enemy_walk/scr_ranger_enemy_walk.yy",},},
     {"id":{"name":"scr_shield_enemy_attack","path":"scripts/scr_shield_enemy_attack/scr_shield_enemy_attack.yy",},},
+    {"id":{"name":"scr_shield_enemy_run","path":"scripts/scr_shield_enemy_run/scr_shield_enemy_run.yy",},},
     {"id":{"name":"scr_shield_enemy_walk","path":"scripts/scr_shield_enemy_walk/scr_shield_enemy_walk.yy",},},
     {"id":{"name":"scr_spawn_solid_rect","path":"scripts/scr_spawn_solid_rect/scr_spawn_solid_rect.yy",},},
     {"id":{"name":"scr_tilemap_fill","path":"scripts/scr_tilemap_fill/scr_tilemap_fill.yy",},},

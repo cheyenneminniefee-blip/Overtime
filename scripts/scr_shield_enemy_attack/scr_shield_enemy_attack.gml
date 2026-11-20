@@ -30,9 +30,9 @@ function scr_shield_enemy_attack() {
         }
 
         if (instance_exists(obj_player) && point_distance(x, y, obj_player.x, obj_player.y) <= sight_range) {
-            state = enemy_states.walk;
+            state = enemy_states.run;   // stay in pursuit after the bash (melee-enemy parity)
         } else {
-            state = enemy_states.idle;
+            state = enemy_states.walk;
         }
     }
 }
