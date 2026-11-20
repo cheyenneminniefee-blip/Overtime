@@ -57,6 +57,7 @@
     {"id":{"name":"obj_solid_tile","path":"objects/obj_solid_tile/obj_solid_tile.yy",},},
     {"id":{"name":"obj_solid","path":"objects/obj_solid/obj_solid.yy",},},
     {"id":{"name":"obj_time_domain","path":"objects/obj_time_domain/obj_time_domain.yy",},},
+    {"id":{"name":"obj_phase_slash_vfx","path":"objects/obj_phase_slash_vfx/obj_phase_slash_vfx.yy",},},
     {"id":{"name":"obj_tpl_exporter","path":"objects/obj_tpl_exporter/obj_tpl_exporter.yy",},},
     {"id":{"name":"obj_tpl_floor","path":"objects/obj_tpl_floor/obj_tpl_floor.yy",},},
     {"id":{"name":"obj_tpl_header","path":"objects/obj_tpl_header/obj_tpl_header.yy",},},
