@@ -92,7 +92,6 @@ dodge_cooldown_max = 30;
 dodge_was_air = false;   // This dodge started airborne — gravity suspended for the whole burst
 dodge_air_used = false;  // One air dodge per airborne period, refreshed on landing
 dodge_ghosts = [];       // After-image ghosts (draw-only): {spr, ind, x, y, xs, ys, t}
-dodge_ghost_tick = 0;    // Ghost spawn accumulator: one ghost per 4 nominal frames (dt-scaled)
 ghost_life = 12;         // 6 PRD frames at 60 fps
 
 flash_duration = 4;      // How many frames at the start of the dash the player stays white

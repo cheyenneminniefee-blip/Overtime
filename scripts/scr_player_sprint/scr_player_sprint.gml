@@ -1,6 +1,6 @@
 function scr_player_sprint() {
     sprite_index = spr_player_sprint;
-    image_speed = scr_dt(); // Slightly faster animation speed to match high velocity
+    image_speed = 1; // Slightly faster animation speed to match high velocity
     
 	legs_sprite_index = spr_player_legs_sprint;
     legs_image_speed = 1.2; // Match sprinting speed rhythm

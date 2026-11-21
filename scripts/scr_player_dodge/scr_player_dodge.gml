@@ -6,8 +6,7 @@ function scr_player_dodge() {
     var grounded = place_meeting(x, y + 1, obj_solid);
     
     // --- 1. PHYSICS & TIMERS ---
-    hspd = facing_dir * dodge_spd;   // per-frame velocity; integration scales with dt in Step
-    var _dt = scr_dt();
+    hspd = facing_dir * dodge_spd;
 
     // Air dodge: a straight horizontal line — vertical momentum cancelled at
     // start, gravity suspended for the whole burst, fall resumes from vspd 0.
@@ -16,31 +15,25 @@ function scr_player_dodge() {
     if (dodge_was_air || grounded) {
         vspd = 0;
     } else {
-        vspd = vspd + grv * _dt;
+        vspd = vspd + grv;
     }
 
-    // After-images: 3 ghosts over the 12-frame burst (PRD 5.5) — at elapsed
-    // 0 (seeded by the trigger), 4, and 8. Delta-time safe: a spawn
-    // accumulator fires once per 4 nominal frames and carries the remainder
-    // across dropped/partial steps.
-    dodge_ghost_tick += scr_dt();
-    if (dodge_ghost_tick >= 4) {
-        dodge_ghost_tick -= 4;
-        if (dodge_timer > 0) {   // the last interval ends exactly at burst end
-            array_push(dodge_ghosts, {
-                spr: sprite_index,
-                ind: image_index,
-                x: x,
-                y: y,
-                xs: facing_dir * draw_xscale,
-                ys: draw_yscale,
-                t: 0
-            });
-        }
+    // After-images: 3 ghosts at 2 PRD-frame (4 frame) intervals (PRD 5.5)
+    var _elapsed = dodge_duration - dodge_timer;
+    if (_elapsed == 0) || (_elapsed == 4) || (_elapsed == 8) {
+        array_push(dodge_ghosts, {
+            spr: sprite_index,
+            ind: image_index,
+            x: x,
+            y: y,
+            xs: facing_dir * draw_xscale,
+            ys: draw_yscale,
+            t: 0
+        });
     }
     
-    if (flash_timer > 0)  flash_timer -= scr_dt();
-    if (dodge_timer > 0)  dodge_timer -= scr_dt();
+    if (flash_timer > 0)  flash_timer -= 1;
+    if (dodge_timer > 0)  dodge_timer -= 1;
     
     // --- 2. TERMINATION ---
     if (dodge_timer <= 0) {

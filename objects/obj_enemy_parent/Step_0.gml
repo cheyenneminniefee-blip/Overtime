@@ -7,15 +7,11 @@ if (global.time_frozen) {
     exit;
 }
 
-// Delta-time scale (see scr_dt): 1.0 at the nominal 60 steps/s; > 1 when
-// steps are dropped. Velocities, timers, and animation advance scale by it.
-var _dt = scr_dt();
-
 // Decrement action timers
-if (attack_cooldown > 0)     attack_cooldown -= _dt;
-if (stun_immunity_timer > 0) stun_immunity_timer -= _dt;   // NEW
-if (damage_window_timer > 0) damage_window_timer -= _dt;   // NEW
-if (flash_timer > 0)         flash_timer -= _dt;           // NEW
+if (attack_cooldown > 0)     attack_cooldown -= 1;
+if (stun_immunity_timer > 0) stun_immunity_timer -= 1;   // NEW
+if (damage_window_timer > 0) damage_window_timer -= 1;   // NEW
+if (flash_timer > 0)         flash_timer -= 1;           // NEW
 
 // AI Core State Decisions
 var move = 0;
@@ -25,7 +21,7 @@ if (state == enemy_states.walk) {
     move = sign(target_player.x - x);
 }
 
-image_speed = _dt;
+image_speed = 1;
 
 // Attacking drops horizontal acceleration to 0
 if (state == enemy_states.attack) {
@@ -52,33 +48,27 @@ if (state == enemy_states.run && instance_exists(target_player) && stop_range > 
 } else {
     hspd = move * ((state == enemy_states.run) ? run_spd : walk_spd);
 }
-vspd = vspd + grv * _dt;
+vspd = vspd + grv;
 
 var grounded = place_meeting(x, y + 1, obj_solid);
 
-// Horizontal Collision System (per-frame displacement scales with delta time)
-var _dx = hspd * _dt;
-if (_dx != 0) {
-    if (place_meeting(x + _dx, y, obj_solid)) {
-        while (!place_meeting(x + sign(_dx), y, obj_solid)) {
-            x += sign(_dx);
-        }
-        hspd = 0;
+// Horizontal Collision System
+if (place_meeting(x + hspd, y, obj_solid)) {
+    while (!place_meeting(x + sign(hspd), y, obj_solid)) {
+        x += sign(hspd);
     }
-    x += _dx;
+    hspd = 0;
 }
+x += hspd;
 
 // Vertical Collision System
-var _dy = vspd * _dt;
-if (_dy != 0) {
-    if (place_meeting(x, y + _dy, obj_solid)) {
-        while (!place_meeting(x, y + sign(_dy), obj_solid)) {
-            y += sign(_dy);
-        }
-        vspd = 0;
+if (place_meeting(x, y + vspd, obj_solid)) {
+    while (!place_meeting(x, y + sign(vspd), obj_solid)) {
+        y += sign(vspd);
     }
-    y += _dy;
+    vspd = 0;
 }
+y += vspd;
 
 // --- Airborne And Landing State Tracker ---
 if (!grounded) {
@@ -93,11 +83,11 @@ if (!grounded) {
 if (hspd != 0) {
     facing_dir = sign(hspd);
 }
-draw_xscale = scr_dt_lerp(draw_xscale, 1, 0.1);
-draw_yscale = scr_dt_lerp(draw_yscale, 1, 0.1);
+draw_xscale = lerp(draw_xscale, 1, 0.1);
+draw_yscale = lerp(draw_yscale, 1, 0.1);
 
 // Manually animate the legs frame counter
-legs_image_index += (legs_image_speed * sprite_get_speed(legs_sprite_index) / game_get_speed(gamespeed_fps)) * _dt;
+legs_image_index += (legs_image_speed * sprite_get_speed(legs_sprite_index) / game_get_speed(gamespeed_fps));
 legs_image_index = legs_image_index % sprite_get_number(legs_sprite_index);
 
 // --- Apply The Sprite Set For The Current State ---

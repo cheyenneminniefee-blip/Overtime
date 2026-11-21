@@ -7,7 +7,7 @@ function scr_enemy_idle() {
     }
 
     if (idle_timer > 0) {
-        idle_timer -= scr_dt();
+        idle_timer -= 1;
     }
 
     if (idle_timer <= 0) {

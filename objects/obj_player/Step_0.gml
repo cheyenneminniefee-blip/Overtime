@@ -22,22 +22,17 @@ key_block_pressed = mouse_check_button_pressed(mb_right); // Checks the initial 
 //   3 = WEAPON.SPEAR
 // NOTE: when the mace logic lands, add 4 = WEAPON.MACE here.
 
-// Delta-time scale (see scr_dt): 1.0 at the nominal 60 steps/s; > 1 when
-// steps are dropped. Every velocity integration, timer, and regen below
-// scales by it so gameplay advances in real seconds at any step rate.
-var _dt = scr_dt();
-
 // Decrement your dodge cooldown over time
 if (dodge_cooldown > 0) {
-    dodge_cooldown -= _dt;
+    dodge_cooldown -= 1;
 }
 
 // Decrement wall jump lockout timer over time
 if (wall_jump_timer > 0) {
-    wall_jump_timer -= _dt;
+    wall_jump_timer -= 1;
 }
 
-image_speed = _dt;
+image_speed = 1;
 
 // Basic Movement Calculations
 var move = key_right - key_left;
@@ -55,7 +50,7 @@ if (key_attack) {
 } else if (!key_attack_held) {
     heavy_hold_timer = -1;
 } else if (heavy_hold_timer >= 0) {
-    heavy_hold_timer += _dt;
+    heavy_hold_timer += 1;
 }
 
 // Debug heavy weapon swap (see keybind notes above);
@@ -78,7 +73,7 @@ if (state != player_states.dodge) && (state != player_states.wall_hang) {
             hspd = move * walk_spd;
         }
     }
-    vspd = vspd + grv * _dt; // Gravity always runs so your wall jump arcs naturally
+    vspd = vspd + grv; // Gravity always runs so your wall jump arcs naturally
 }
 
 // --- Ground Check And Jump Execution ---
@@ -109,7 +104,7 @@ if (hp <= 0) && (!is_overtime) {
     overtime_timer = 1800;
 }
 if (is_overtime) {
-    overtime_timer -= _dt;
+    overtime_timer -= 1;
     if (overtime_timer <= 0) {
         // Timer expiry is True Death (PRD 5.1) — the Afterlife arrives later
         scr_player_true_death();
@@ -147,29 +142,23 @@ if (!grounded) && (state == player_states.jump || state == player_states.air_att
     }
 }
 
-// Horizontal Collision System (per-frame displacement scales with delta time)
-var _dx = hspd * _dt;
-if (_dx != 0) {
-    if (place_meeting(x + _dx, y, obj_solid)) {
-        while (!place_meeting(x + sign(_dx), y, obj_solid)) {
-            x = x + sign(_dx);
-        }
-        hspd = 0;
+// Horizontal Collision System
+if (place_meeting(x + hspd, y, obj_solid)) {
+    while (!place_meeting(x + sign(hspd), y, obj_solid)) {
+        x = x + sign(hspd);
     }
-    x = x + _dx;
+    hspd = 0;
 }
+x = x + hspd;
 
 // Vertical Collision System
-var _dy = vspd * _dt;
-if (_dy != 0) {
-    if (place_meeting(x, y + _dy, obj_solid)) {
-        while (!place_meeting(x, y + sign(_dy), obj_solid)) {
-            y = y + sign(_dy);
-        }
-        vspd = 0;
+if (place_meeting(x, y + vspd, obj_solid)) {
+    while (!place_meeting(x, y + sign(vspd), obj_solid)) {
+        y = y + sign(vspd);
     }
-    y = y + _dy;
+    vspd = 0;
 }
+y = y + vspd;
 
 // Landing refreshes the air dodge (PRD 5.5)
 if (place_meeting(x, y + 1, obj_solid)) {
@@ -210,25 +199,25 @@ if (state != player_states.idle_attack_1) && (state != player_states.idle_attack
 
 // Combo And Cooldown Timer Decrement
 if (attack_cooldown > 0) {
-    attack_cooldown -= _dt;
+    attack_cooldown -= 1;
 }
 if (combo_timer > 0) {
-    combo_timer -= _dt;
+    combo_timer -= 1;
 }
 if (buffer_lockout_timer > 0) {
-    buffer_lockout_timer -= _dt;
+    buffer_lockout_timer -= 1;
 }
-if (invuln_timer > 0) invuln_timer -= _dt;
-if (hurt_timer > 0)   hurt_timer -= _dt;
-if (parry_timer > 0)  parry_timer -= _dt;
-if (freeze_fizzle_timer > 0) freeze_fizzle_timer -= _dt;
-if (flash_timer > 0)  flash_timer -= _dt;   // flash is now global (see note)
-if (phase_slash_cooldown > 0) phase_slash_cooldown -= _dt;
+if (invuln_timer > 0) invuln_timer -= 1;
+if (hurt_timer > 0)   hurt_timer -= 1;
+if (parry_timer > 0)  parry_timer -= 1;
+if (freeze_fizzle_timer > 0) freeze_fizzle_timer -= 1;
+if (flash_timer > 0)  flash_timer -= 1;   // flash is now global (see note)
+if (phase_slash_cooldown > 0) phase_slash_cooldown -= 1;
 
-// --- Resource upkeep (PRD 5.6) — rates are per-second, so they scale with dt ---
+// --- Resource upkeep (PRD 5.6) ---
 // Sprint drains 20/s and sustains until stamina reaches 0
 if (state == player_states.sprint) {
-    stamina = max(0, stamina - 20 * _dt / 60);
+    stamina = max(0, stamina - 20 / 60);
     stamina_regen_delay = stamina_regen_delay_max;
     if (stamina <= 0) sprint_needs_reengage = true;
 }
@@ -242,16 +231,16 @@ if (sprint_needs_reengage) && (stamina >= 30) {
 }
 // Stamina regen: 30/s after 0.5 s without sprinting, dodging, or blocking
 if (stamina_regen_delay > 0) {
-    stamina_regen_delay -= _dt;
+    stamina_regen_delay -= 1;
 } else if (stamina < stamina_max) {
-    stamina = min(stamina_max, stamina + 30 * _dt / 60);
+    stamina = min(stamina_max, stamina + 30 / 60);
 }
 // Energy regen: 10/s, always
-energy = min(energy_max, energy + 10 * _dt / 60);
+energy = min(energy_max, energy + 10 / 60);
 
 // After-image ghost lifetime (PRD 5.5)
 for (var _gi = array_length(dodge_ghosts) - 1; _gi >= 0; _gi--) {
-    dodge_ghosts[_gi].t += _dt;
+    dodge_ghosts[_gi].t += 1;
     if (dodge_ghosts[_gi].t > ghost_life) array_delete(dodge_ghosts, _gi, 1);
 }
 
@@ -277,7 +266,6 @@ if (key_dodge) && (dodge_cooldown <= 0) && (stamina >= 20) {
             flash_timer = flash_duration;
             stamina -= 20;
             stamina_regen_delay = stamina_regen_delay_max;
-            dodge_ghost_tick = 4;   // first after-image fires on the burst's first dodge step (0/4/8 pattern)
             dodge_was_air = !_on_ground;
             if (!_on_ground) dodge_air_used = true;
 
@@ -457,11 +445,11 @@ if (combo_timer <= 0) {
 if (hspd != 0) {
     facing_dir = sign(hspd);
 }
-draw_xscale = scr_dt_lerp(draw_xscale, 1, 0.1);
-draw_yscale = scr_dt_lerp(draw_yscale, 1, 0.1);
+draw_xscale = lerp(draw_xscale, 1, 0.1);
+draw_yscale = lerp(draw_yscale, 1, 0.1);
 
 // Manually animate the legs frame counter based on current image speed
-legs_image_index += (legs_image_speed * sprite_get_speed(legs_sprite_index) / game_get_speed(gamespeed_fps)) * _dt;
+legs_image_index += (legs_image_speed * sprite_get_speed(legs_sprite_index) / game_get_speed(gamespeed_fps));
 
 // Loop the legs animation cleanly so it doesn't break boundaries
 if (legs_image_index >= sprite_get_number(legs_sprite_index)) {

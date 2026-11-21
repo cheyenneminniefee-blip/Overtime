@@ -1,6 +1,6 @@
 function scr_player_idle_attack_2() {
     sprite_index = spr_player_idle_attack_2;
-    image_speed = scr_dt();
+    image_speed = 1;
     
 	normal_map=spr_player_idle_attack_2_nm;
 	

@@ -1,6 +1,6 @@
 function scr_player_phase_slash() {
     sprite_index = spr_player_phase;
-    image_speed = scr_dt();
+    image_speed = 1;
 
     normal_map = spr_player_phase_nm;
 
@@ -20,7 +20,7 @@ function scr_player_phase_slash() {
     // flips, so no guard flag is needed. Player-owned: it animates during a
     // Time Freeze (no gate).
     if (!phase_teleported && image_index < 6
-    &&  image_index + sprite_get_speed(sprite_index) / game_get_speed(gamespeed_fps) * scr_dt() >= 6) {
+    &&  image_index + sprite_get_speed(sprite_index) / game_get_speed(gamespeed_fps) >= 6) {
         var _vfx = instance_create_layer(x, y, layer, obj_phase_slash_vfx);
         _vfx.image_xscale = facing_dir;   // flip-safe either way: a symmetric sprite is unchanged
     }

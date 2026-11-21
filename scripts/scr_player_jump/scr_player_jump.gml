@@ -19,7 +19,7 @@ function scr_player_jump() {
 			legs_image_index = 1;
         }
     } else {
-		image_speed = 10 * scr_dt();
+		image_speed=10;
         image_index = 3;
 		legs_image_index = 3;
     }
