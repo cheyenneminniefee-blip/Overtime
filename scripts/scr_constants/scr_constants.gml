@@ -65,3 +65,7 @@ enum WEAPON { NONE, GREATSWORD, SPEAR, MACE }
 #macro SWORD_DAMAGE 18             // Hard Light Sword baseline, type MELEE, 1x poise
 #macro GREATSWORD_DAMAGE 40
 #macro GREATSWORD_POISE 2.0        // 2x poise damage
+#macro SPEAR_DAMAGE 35             // 35 (PRD 5.8): reach-and-pierce identity
+#macro SPEAR_POISE 1.5             // 1.5x poise damage
+#macro SPEAR_MAX_TARGETS 2         // PRD 5.8: the spear pierces up to 2 targets per swing
+#macro HB_TARGETS_UNLIMITED -1     // hit cap sentinel (sword / greatsword hit everything in the arc)

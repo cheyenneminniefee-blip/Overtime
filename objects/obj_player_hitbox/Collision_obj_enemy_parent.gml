@@ -10,6 +10,10 @@ for (var i = 0; i < array_length(hit_list); i++) {
 }
 if (_already_hit) exit;
 
+// PRD 5.8 hit caps: the spear pierces at most 2 targets per swing; sword and
+// greatsword have no cap set (unlimited sentinel)
+if (max_targets >= 0 && array_length(hit_list) >= max_targets) exit;
+
 array_push(hit_list, _enemy);
 
 var _dmg = damage;
