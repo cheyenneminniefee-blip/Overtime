@@ -53,7 +53,8 @@ if (state != player_states.idle_attack_1) &&
    (state != player_states.phase_slash)   &&
    (state != player_states.dodge)         &&
    (state != player_states.wall_hang)     &&
-   (state != player_states.block) {
+   (state != player_states.block)         &&
+   (state != player_states.heavy_attack) {
 
     if (sprite_exists(legs_sprite_index)) {
         if (flash_timer <= 0) {

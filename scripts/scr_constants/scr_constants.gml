@@ -61,7 +61,7 @@
 // PRD frame counts are 30 fps integers; this repo runs at 60 fps, so the 9 f
 // threshold is doubled. Values are per-weapon here so spear/mace can slot in.
 enum WEAPON { NONE, GREATSWORD, SPEAR, MACE }
-#macro HEAVY_HOLD_THRESHOLD 18     // PRD 9 f @30fps -> 18 @60fps: the point of no return
+#macro HEAVY_HOLD_THRESHOLD 30     // PRD 9 f @30fps -> 18 @60fps: the point of no return
 #macro SWORD_DAMAGE 18             // Hard Light Sword baseline, type MELEE, 1x poise
 #macro GREATSWORD_DAMAGE 40
 #macro GREATSWORD_POISE 2.0        // 2x poise damage

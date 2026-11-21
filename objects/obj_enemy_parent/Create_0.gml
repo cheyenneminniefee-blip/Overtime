@@ -18,7 +18,7 @@ run_spd = 3.5;                 // Only the melee enemy ever enters run
 stop_range = -1;               // Body-stop radius; set > 0 by enemies that keep their distance (obj_enemy_melee = 60)
 
 // --- Combat And State Variables ---
-hp = 10;
+hp = 50;
 idle_timer = 0;
 idle_duration = 120;
 attack_cooldown = 0;
@@ -35,7 +35,7 @@ alerted = false;              // NEW — has this enemy EVER registered the play
 stun_timer = 0;               // Frames of stun remaining
 stun_immunity_timer = 0;      // Post-stun immunity (anti chain-lock)
 stun_duration = 75;          // 2.5 seconds at 60fps
-poise_threshold = 3;          // Damage absorbed inside the window before staggering
+poise_threshold = 20;          // Damage absorbed inside the window before staggering
 poise_window = 120;            // How long the damage "memory" lasts (frames)
 damage_window_timer = 0;
 damage_taken_window = 0;
