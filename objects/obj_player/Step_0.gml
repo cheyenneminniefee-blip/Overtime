@@ -9,6 +9,7 @@ key_phase = keyboard_check_pressed(ord("E"));
 key_freeze = keyboard_check_pressed(ord("Q"));
 key_grenade = keyboard_check_pressed(ord("G"));   // PRD 4.3: Photon Grenade
 key_attack = mouse_check_button_pressed(mb_left);
+key_attack_held = mouse_check_button(mb_left);   // PRD 5.8 tap/hold contract: pressed vs still-down
 key_dodge = keyboard_check_pressed(vk_shift);   // PRD 5.5: the Shift press fires the dodge; holding continues into sprint
 key_block = mouse_check_button(mb_right);          // Checks if holding right-click
 key_block_pressed = mouse_check_button_pressed(mb_right); // Checks the initial click
@@ -28,8 +29,20 @@ image_speed = 1;
 // Basic Movement Calculations
 var move = key_right - key_left;
 if (state == player_states.idle_attack_1) || (state == player_states.idle_attack_2) || (state == player_states.idle_attack_3) || 
-   (state == player_states.phase_slash)   || (state == player_states.dodge)         || (state == player_states.block) { // FIX: Stop movement input
+   (state == player_states.phase_slash)   || (state == player_states.dodge)         || (state == player_states.block) ||
+   (state == player_states.heavy_attack) {   // PRD 5.8: locked in — rooted, every movement input ignored
     move = 0;
+}
+
+// --- PRD 5.8 tap/hold contract: track the attack button's hold length ---
+// A press resets the counter; holding past HEAVY_HOLD_THRESHOLD commits; a
+// release invalidates it until the next press.
+if (key_attack) {
+    heavy_hold_timer = 0;
+} else if (!key_attack_held) {
+    heavy_hold_timer = -1;
+} else if (heavy_hold_timer >= 0) {
+    heavy_hold_timer += 1;
 }
 
 // Sprint availability (PRD 5.6): engaging needs 15 stamina (30 after emptying —
@@ -52,7 +65,8 @@ if (state != player_states.dodge) && (state != player_states.wall_hang) {
 // --- Ground Check And Jump Execution ---
 if (place_meeting(x, y + 1, obj_solid)) && (key_jump) && 
    (state != player_states.idle_attack_1) && (state != player_states.idle_attack_2) && (state != player_states.idle_attack_3) && 
-   (state != player_states.phase_slash) && (state != player_states.wall_hang) && (state != player_states.dodge) {
+   (state != player_states.phase_slash) && (state != player_states.wall_hang) && (state != player_states.dodge) &&
+   (state != player_states.heavy_attack) {   // PRD 5.8: locked in — inputs ignored
     
     vspd = jump_spd;
     hspd = clamp(hspd, -sprint_spd, sprint_spd);   // Takeoff clamp: a jump out of a burst is a sprint-jump, never a rocket (PRD 5.5)
@@ -141,7 +155,8 @@ if (place_meeting(x, y + 1, obj_solid)) {
 if (state != player_states.idle_attack_1) && (state != player_states.idle_attack_2) && (state != player_states.idle_attack_3) && 
    (state != player_states.phase_slash)   && (state != player_states.walk_attack_1) && (state != player_states.walk_attack_2) &&
    (state != player_states.up_attack)     && (state != player_states.down_attack)   && (state != player_states.air_attack)    && 
-   (state != player_states.dodge)         && (state != player_states.wall_hang)     && (state != player_states.block) { // FIX: Protect block state
+   (state != player_states.dodge)         && (state != player_states.wall_hang)     && (state != player_states.block) &&
+   (state != player_states.heavy_attack) { // PRD 5.8: heavy is ground-only — the landing tracker must not yank it into jump
        
     if (!grounded) {
         state = player_states.jump;
@@ -270,6 +285,34 @@ flash_timer = flash_duration;
     }
 }
 
+// --- HEAVY WEAPON COMMITMENT (PRD 5.8: tap swings the sword, hold swings
+// into the heavy) --- At the hold threshold the point of no return passes:
+// the current sword swing's remaining recovery is absorbed (its hitbox is
+// killed), and the rooted, uninterruptible heavy wind-up begins. Ground-only;
+// in the air the hold persists and the commitment starts on the first
+// grounded frame if the button is still down ("jump in, plant, swing").
+// Never fires without a selected heavy weapon (pre-armory), or out of dodge /
+// block / phase slash / wall hang.
+if (heavy_weapon != WEAPON.NONE
+&&  heavy_hold_timer >= HEAVY_HOLD_THRESHOLD
+&&  grounded
+&&  state != player_states.heavy_attack
+&&  state != player_states.phase_slash
+&&  state != player_states.dodge
+&&  state != player_states.block
+&&  state != player_states.wall_hang) {
+    // Absorb: dump the in-flight sword swing's hitbox for a clean re-spawn
+    // on the heavy's own hitbox (its per-swing hit_list resets with it)
+    if (attack_hitbox != noone && instance_exists(attack_hitbox)) {
+        instance_destroy(attack_hitbox);
+        attack_hitbox = noone;
+    }
+    state = player_states.heavy_attack;
+    image_index = 0;
+    attack_buffered = false;
+    heavy_hold_timer = -1;   // commitment absorbed the hold; clear it
+}
+
 // Melee Attack State Trigger
 if (key_attack) {
     
@@ -282,7 +325,8 @@ if (key_attack) {
        (state != player_states.up_attack)     && 
        (state != player_states.down_attack)   && 
        (state != player_states.air_attack)    && 
-       (state != player_states.phase_slash) {
+       (state != player_states.phase_slash)   &&
+       (state != player_states.heavy_attack) {   // PRD 5.8: locked in — the attack button itself is ignored
         
         // 1. HIGH PRIORITY SPRINT CHECK: Phase Slash (Works Grounded AND Airborne!)
         // If holding sprint and moving horizontally, execute Phase Slash regardless of altitude
@@ -416,4 +460,5 @@ switch (state) {
 	case player_states.dodge:         scr_player_dodge(); break;
 	case player_states.wall_hang:     scr_player_wall_hang(); break;
 	case player_states.block:         scr_player_block(); break;
+	case player_states.heavy_attack:  scr_player_heavy_attack(); break;
 }

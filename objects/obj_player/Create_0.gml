@@ -34,6 +34,14 @@ phase_slash_cost = 40;         // 40 energy per real teleport (PRD 5.3, 5.6)
 phase_slash_range = 160;       // 5 tiles (PRD 5.3)
 phase_teleported = false;
 
+// --- Heavy weapon slot (PRD 5.8) ---
+// Selected at the post-Traefin L6 armory pedestals (or any checkpoint's swap
+// menu). Debug-on so the greatsword is testable now; set to WEAPON.NONE to
+// restore the pre-armory behavior where holding the attack button does
+// nothing beyond the normal sword swing.
+heavy_weapon = WEAPON.GREATSWORD;
+heavy_hold_timer = -1;   // frames the attack button has been held; -1 = not held / committed
+
 // State Machine Initialization
 enum player_states {
     idle,
@@ -52,6 +60,7 @@ enum player_states {
 	dodge,
 	wall_hang,
 	block,
+	heavy_attack,
 }
 state = player_states.idle;
 facing_dir = 1;

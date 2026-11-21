@@ -1,8 +1,10 @@
-/// scr_enemy_take_damage(_amount, _from_x, _bypass_shield)
+/// scr_enemy_take_damage(_amount, _from_x, _bypass_shield, _poise_mult)
 // _amount        — HP to remove
 // _from_x        — x coordinate the hit came from (shield facing check)
 // _bypass_shield — true for Phase Slash / grenades (PRD: both ignore the shield)
-function scr_enemy_take_damage(_amount, _from_x, _bypass_shield) {
+// _poise_mult    — poise damage multiplier (PRD 5.8: sword 1x, greatsword 2x,
+//                  spear 1.5x, mace 3x); optional, defaults to 1
+function scr_enemy_take_damage(_amount, _from_x, _bypass_shield, _poise_mult = 1) {
 
     // --- 0. TIME FREEZE (PRD 5.2) ---
     // Frozen enemies take half damage from every source (fractions kept) and
@@ -78,7 +80,7 @@ function scr_enemy_take_damage(_amount, _from_x, _bypass_shield) {
         damage_window_timer = poise_window;
         damage_taken_window = 0;
     }
-    damage_taken_window += _amount;
+    damage_taken_window += _amount * _poise_mult;
 
     if (damage_taken_window >= poise_threshold) {
         damage_window_timer = 0;

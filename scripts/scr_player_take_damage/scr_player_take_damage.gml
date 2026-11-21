@@ -16,8 +16,19 @@ function scr_player_take_damage(_amount, _from_x) {
     // --- APPLY DAMAGE ---
     hp -= _amount;
     invuln_timer = 60;   // 1 second of mercy invulnerability
-    hurt_timer = 12;     // input lockout so the knockback actually plays
-    wall_jump_timer = max(wall_jump_timer, 10); // don't insta-latch to a wall mid-hit
+
+    // --- HEAVY COMMITMENT ARMOR (PRD 5.8: uninterruptible) ---
+    // During a heavy commitment the hit lands and normal i-frames are
+    // granted, but nothing external interrupts it: no flinch (no hurt
+    // lockout, no squash), no knockback, no hitbox cleanup, no state change —
+    // guard-break staggers, stuns, and movement overrides are ignored, and
+    // no knockback means the Wall-Slam Bonus cannot trigger. In Overtime the
+    // all-in rule above still applies: any damage taken ends the run.
+    if (state == player_states.heavy_attack) {
+        flash_timer = flash_duration;   // flash without the flinch (PRD 12.2) — armor, not ignored damage
+    } else {
+        hurt_timer = 12;     // input lockout so the knockback actually plays
+        wall_jump_timer = max(wall_jump_timer, 10); // don't insta-latch to a wall mid-hit
 
     // Cancel any active attack and clean up its hitbox
     if (attack_hitbox != noone && instance_exists(attack_hitbox)) {
@@ -40,4 +51,5 @@ function scr_player_take_damage(_amount, _from_x) {
     // Interrupt into a knocked-airborne state; your existing step-event
     // Overtime machine catches hp <= 0 on the next frame
     state = player_states.jump;
+    }   // end non-heavy branch (heavy commitment above skips all of this)
 }

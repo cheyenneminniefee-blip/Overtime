@@ -14,6 +14,7 @@ array_push(hit_list, _enemy);
 
 var _dmg = damage;
 var _src_x = x;   // hitbox tracks the player exactly, so this IS the swing origin
+var _pmult = poise_mult;
 with (_enemy) {
-    scr_enemy_take_damage(_dmg, _src_x, false);
+    scr_enemy_take_damage(_dmg, _src_x, false, _pmult);
 }
