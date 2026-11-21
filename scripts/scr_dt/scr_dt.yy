@@ -1,0 +1,13 @@
+{
+  "$GMScript":"v1",
+  "%Name":"scr_dt",
+  "isCompatibility":false,
+  "isDnD":false,
+  "name":"scr_dt",
+  "parent":{
+    "name":"Overtime",
+    "path":"Overtime.yyp",
+  },
+  "resourceType":"GMScript",
+  "resourceVersion":"2.0",
+}

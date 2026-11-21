@@ -69,6 +69,8 @@
     {"id":{"name":"rm_workshop","path":"rooms/rm_workshop/rm_workshop.yy",},},
     {"id":{"name":"Room1","path":"rooms/Room1/Room1.yy",},},
     {"id":{"name":"scr_constants","path":"scripts/scr_constants/scr_constants.yy",},},
+    {"id":{"name":"scr_dt","path":"scripts/scr_dt/scr_dt.yy",},},
+    {"id":{"name":"scr_dt_lerp","path":"scripts/scr_dt_lerp/scr_dt_lerp.yy",},},
     {"id":{"name":"scr_enemy_check_for_player","path":"scripts/scr_enemy_check_for_player/scr_enemy_check_for_player.yy",},},
     {"id":{"name":"scr_enemy_idle","path":"scripts/scr_enemy_idle/scr_enemy_idle.yy",},},
     {"id":{"name":"scr_enemy_stun","path":"scripts/scr_enemy_stun/scr_enemy_stun.yy",},},

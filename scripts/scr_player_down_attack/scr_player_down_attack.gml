@@ -1,6 +1,6 @@
 function scr_player_down_attack() {
     sprite_index = spr_player_down_attack;
-    image_speed = 1;
+    image_speed = scr_dt();
 	
 	normal_map=spr_player_down_attack_nm;
     

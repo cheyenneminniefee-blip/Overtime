@@ -1,0 +1,13 @@
+{
+  "$GMScript":"v1",
+  "%Name":"scr_dt_lerp",
+  "isCompatibility":false,
+  "isDnD":false,
+  "name":"scr_dt_lerp",
+  "parent":{
+    "name":"Overtime",
+    "path":"Overtime.yyp",
+  },
+  "resourceType":"GMScript",
+  "resourceVersion":"2.0",
+}

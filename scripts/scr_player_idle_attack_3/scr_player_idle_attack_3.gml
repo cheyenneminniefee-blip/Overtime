@@ -1,6 +1,6 @@
 function scr_player_idle_attack_3() {
     sprite_index = spr_player_idle_attack_3;
-    image_speed = 1;
+    image_speed = scr_dt();
 	normal_map=spr_player_idle_attack_3_nm;
     
     if (attack_hitbox == noone) {

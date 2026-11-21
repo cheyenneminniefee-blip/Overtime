@@ -1,6 +1,6 @@
 function scr_player_up_attack() {
     sprite_index = spr_player_up_attack;
-    image_speed = 1;
+    image_speed = scr_dt();
 	normal_map=spr_player_up_attack_nm;
     
     // --- 1. REAL-TIME MULTI-SCENARIO LEGS CONTROLLER ---

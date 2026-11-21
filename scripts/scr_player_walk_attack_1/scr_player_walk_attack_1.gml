@@ -1,6 +1,6 @@
 function scr_player_walk_attack_1() {
     sprite_index = spr_player_walk_attack_1;
-    image_speed = 1;
+    image_speed = scr_dt();
 	
 	normal_map=spr_player_walk_attack_1_nm;
     

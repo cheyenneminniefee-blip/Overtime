@@ -3,10 +3,13 @@
 // Time Freeze (PRD 5.2): frozen hostile projectiles do not move
 if (global.time_frozen) exit;
 
-// Sub-stepped sweep so a 640 px/s bolt never tunnels a 1-tile wall
-var _steps = ceil(max(abs(hspd), abs(vspd)) / 8);
-var _dx = hspd / _steps;
-var _dy = vspd / _steps;
+// Sub-stepped sweep so a 640 px/s bolt never tunnels a 1-tile wall.
+// Per-frame displacement scales with delta time, and the substep count grows
+// with it so the sweep granularity (<= 8 px) holds at any step rate.
+var _dt = scr_dt();
+var _steps = ceil(max(abs(hspd), abs(vspd)) * _dt / 8);
+var _dx = hspd * _dt / _steps;
+var _dy = vspd * _dt / _steps;
 repeat (_steps) {
     x += _dx;
     y += _dy;
@@ -16,7 +19,7 @@ repeat (_steps) {
     }
 }
 
-lifetime -= 1;
+lifetime -= _dt;
 if (lifetime <= 0) {
     instance_destroy();
     exit;

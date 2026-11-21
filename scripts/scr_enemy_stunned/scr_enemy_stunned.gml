@@ -3,7 +3,7 @@ function scr_enemy_stunned() {
     hspd = 0; // fully locked; gravity still applies from the parent physics
 
     if (stun_timer > 0) {
-        stun_timer -= 1;
+        stun_timer -= scr_dt();
         if (stun_timer <= 0) {
             // Wake up: short immunity + a beat of re-orientation
             stun_immunity_timer = 90;

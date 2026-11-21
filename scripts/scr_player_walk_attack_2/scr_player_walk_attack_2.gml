@@ -1,6 +1,6 @@
 function scr_player_walk_attack_2() {
     sprite_index = spr_player_walk_attack_2;
-    image_speed = 1;
+    image_speed = scr_dt();
 	normal_map=spr_player_walk_attack_2_nm;
     
     // Keep legs cycling smoothly under your torso attack art

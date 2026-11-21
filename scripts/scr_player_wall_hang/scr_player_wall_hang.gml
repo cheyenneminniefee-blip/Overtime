@@ -1,6 +1,6 @@
 function scr_player_wall_hang() {
     sprite_index = spr_player_wall_hang;
-    image_speed = 1;
+    image_speed = scr_dt();
 	
 	normal_map=spr_player_wall_hang_nm;
     

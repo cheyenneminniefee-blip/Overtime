@@ -37,7 +37,7 @@ function scr_player_heavy_attack() {
         }
     }
 
-    image_speed = 1;
+    image_speed = scr_dt();
 
     hspd = 0;   // PRD 5.8: locked in — rooted
 

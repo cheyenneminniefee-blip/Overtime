@@ -1,5 +1,6 @@
 /// obj_explosion — play the blast animation once, then expire
-life -= 1;
+image_speed = 3 * scr_dt();   // user-tuned 3x authored pace, dt-corrected
+life -= scr_dt();
 if (life <= 0) {
     instance_destroy();
 }

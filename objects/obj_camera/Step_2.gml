@@ -5,8 +5,8 @@ if (!instance_exists(target)) exit;
 // Use the player's facing_dir variable from your state machine to decide which way to peek
 var target_peek = target.facing_dir * peek_max_dist;
 
-// Smoothly slide the peek offset toward the target direction
-peek_offset_x = lerp(peek_offset_x, target_peek, peek_speed);
+// Smoothly slide the peek offset toward the target direction (framerate-corrected)
+peek_offset_x = scr_dt_lerp(peek_offset_x, target_peek, peek_speed);
 
 
 // 2. DETERMINE TARGET POSITION
@@ -20,9 +20,9 @@ var target_y = target.y - (cam_height / 2);
 var current_x = camera_get_view_x(view_camera[0]);
 var current_y = camera_get_view_y(view_camera[0]);
 
-// Lerp from current position toward target position
-var new_x = lerp(current_x, target_x, follow_speed);
-var new_y = lerp(current_y, target_y, follow_speed);
+// Lerp from current position toward target position (framerate-corrected)
+var new_x = scr_dt_lerp(current_x, target_x, follow_speed);
+var new_y = scr_dt_lerp(current_y, target_y, follow_speed);
 
 
 // 4. BOUNDARY CLAMPING

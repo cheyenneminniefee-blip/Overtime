@@ -9,7 +9,7 @@ function scr_player_block() {
     
     // Handle the white flash timer inherited from dodge logic
     if (flash_timer > 0) {
-        flash_timer -= 1;
+        flash_timer -= scr_dt();
     }
     
     // TERMINATION: Release right-click to drop the block state safely

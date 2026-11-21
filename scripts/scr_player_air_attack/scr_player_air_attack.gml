@@ -1,6 +1,6 @@
 function scr_player_air_attack() {
     sprite_index = spr_player_air_attack;
-    image_speed = 1;
+    image_speed = scr_dt();
 	normal_map=spr_player_walk_attack_1_nm;
     
     var grounded = place_meeting(x, y + 1, obj_solid);

@@ -5,18 +5,22 @@
 if (global.time_frozen && !thrown_by_player) exit;
 
 // --- FUSE ---
-fuse -= 1;
+var _dt = scr_dt();
+
+fuse -= _dt;
 if (fuse <= 0) {
     scr_grenade_explode(id);
     exit;
 }
 
 // --- BALLISTICS with sub-stepped axis resolution (PRD 11.1) ---
-vspd += grv;
+// Displacements scale with delta time; the substep count grows with it so
+// the <= 8 px collision granularity holds at any step rate.
+vspd += grv * _dt;
 
-var _steps = ceil(max(abs(hspd), abs(vspd)) / 8);
-var _dx = hspd / _steps;
-var _dy = vspd / _steps;
+var _steps = ceil(max(abs(hspd), abs(vspd)) * _dt / 8);
+var _dx = hspd * _dt / _steps;
+var _dy = vspd * _dt / _steps;
 repeat (_steps) {
     if (place_meeting(x + _dx, y, obj_solid)) {
         hspd = -hspd * bounce;
@@ -39,4 +43,4 @@ repeat (_steps) {
     }
 }
 
-image_angle += sign(hspd) * 10;
+image_angle += sign(hspd) * 10 * _dt;
