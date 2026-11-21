@@ -38,8 +38,8 @@
   "nineSlice":null,
   "origin":0,
   "parent":{
-    "name":"player animations",
-    "path":"folders/player animations.yy",
+    "name":"player hitboxes",
+    "path":"folders/player animations/player hitboxes.yy",
   },
   "preMultiplyAlpha":false,
   "resourceType":"GMSprite",
