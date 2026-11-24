@@ -247,6 +247,7 @@
     {"id":{"name":"spr_shield_enemy_stunned","path":"sprites/spr_shield_enemy_stunned/spr_shield_enemy_stunned.yy",},},
     {"id":{"name":"spr_shield_enemy_walk_nm","path":"sprites/spr_shield_enemy_walk_nm/spr_shield_enemy_walk_nm.yy",},},
     {"id":{"name":"spr_shield_enemy_walk","path":"sprites/spr_shield_enemy_walk/spr_shield_enemy_walk.yy",},},
+    {"id":{"name":"spr_shockwave","path":"sprites/spr_shockwave/spr_shockwave.yy",},},
     {"id":{"name":"spr_solid","path":"sprites/spr_solid/spr_solid.yy",},},
     {"id":{"name":"spr_stamina_border","path":"sprites/spr_stamina_border/spr_stamina_border.yy",},},
     {"id":{"name":"spr_stamina","path":"sprites/spr_stamina/spr_stamina.yy",},},
