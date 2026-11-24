@@ -75,17 +75,20 @@ function scr_player_heavy_attack() {
 
     // --- MACE GROUND STUN WAVE (PRD 5.8) ---
     // Fires ONCE, the instant the authored strike mask appears (the very
-    // frame the damage hitbox goes live). The wave object itself is
-    // damage-free: it stuns surrounding enemies instead.
+    // frame the damage hitbox goes live). The wave is damage-free: it crawls
+    // away from the player in a straight line and stuns/shoves enemies it
+    // touches (see obj_mace_shockwave).
     if (heavy_weapon == WEAPON.MACE
     &&  !heavy_shockwave_fired
     &&  image_index >= MACE_STRIKE_FRAME) {
         heavy_shockwave_fired = true;
         var _wave = instance_create_layer(x, y + 32, layer, obj_mace_shockwave);
         // Ground line under the player (idle feet sit 32 px below the origin).
-        // Scale the wedge so its spread matches the coded stun reach exactly.
-        _wave.image_xscale = facing_dir * (MACE_WAVE_RANGE / sprite_get_width(spr_shockwave));
-        _wave.image_yscale = 2;   // chunk the small 32px wedge up to match the 254px body
+        // The wave crawls away in a straight line from here and resolves on
+        // contact — see obj_mace_shockwave.
+        _wave.wave_dir = facing_dir;           // set BEFORE image_xscale: wave travel = strike facing
+        _wave.image_xscale = facing_dir * 2;   // forward = the strike's facing
+        _wave.image_yscale = 2;                // chunk the small 32px wedge up to match the 254px body
     }
 
     // --- END OF COMMITMENT ---

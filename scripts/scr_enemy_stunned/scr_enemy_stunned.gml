@@ -1,6 +1,9 @@
 /// scr_enemy_stunned — shared stunned state loop
 function scr_enemy_stunned() {
-    hspd = 0; // fully locked; gravity still applies from the parent physics
+    // NOTE: do NOT zero hspd here — this script runs after physics, and the
+    // parent movement block owns stunned horizontal motion (it decays any
+    // knockback, e.g. the mace wave's shove, into a slow grounded slide;
+    // scr_enemy_stun zeroes hspd at stun entry, so shoveless stuns hold).
 
     if (stun_timer > 0) {
         stun_timer -= 1;

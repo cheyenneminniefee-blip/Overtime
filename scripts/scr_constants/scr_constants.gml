@@ -72,9 +72,11 @@ enum WEAPON { NONE, GREATSWORD, SPEAR, MACE }
 
 // --- MACE + GROUND STUN WAVE (PRD 5.8) ---
 // The mace is the slowest, heaviest heavy: an overhead strike plus a
-// damage-free ground shockwave. PRD 30 fps integers doubled for this 60 fps
-// repo. The wave fires on the mace animation's authored strike frame and
-// stuns (never damages) every non-boss enemy in its zone.
+// damage-free ground shockwave that crawls away from the player in a straight
+// line, stunning and shoving every non-boss enemy it touches. PRD 30 fps
+// integers doubled for this 60 fps repo. The wave fires on the mace
+// animation's authored strike frame (the same frame the damage hitbox goes
+// live). Travel speed / range / shove are not PRD-specced — tune them here.
 #macro MACE_DAMAGE 60              // 60 (PRD 5.8): heaviest damage in the game
 #macro MACE_POISE 3.0              // 3x poise damage
 #macro MACE_STRIKE_FRAME 24        // authored mask onset of spr_player_attack_mace_hb
@@ -82,6 +84,8 @@ enum WEAPON { NONE, GREATSWORD, SPEAR, MACE }
 #macro MACE_STUN_DURATION 60       // wave stuns for 1.0 s @60fps (PRD 1.0 s)
 #macro MACE_STUN_IMMUNITY 180      // then 3.0 s @60fps of wave-immunity, so a full
                                    // mace cycle can never stun-lock (PRD 3.0 s)
-#macro MACE_WAVE_RANGE 100         // stun reach forward from the strike point
-                                   // (past the melee 60 px and shield 80 px stop lines)
+#macro MACE_WAVE_SPEED 2.5         // px per step (150 px/s @60fps): the slow crawl
+#macro MACE_WAVE_RANGE 150         // max travel distance from the strike point
+#macro MACE_WAVE_CONTACT 24        // half-width of the wave front's stun contact
 #macro MACE_WAVE_HEIGHT 80         // grounded band above/below the strike point
+#macro MACE_WAVE_KNOCKBACK 4       // shove written into victims' hspd on contact

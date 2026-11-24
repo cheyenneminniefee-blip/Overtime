@@ -45,6 +45,13 @@ if (state == enemy_states.run && instance_exists(target_player) && stop_range > 
         // overshoot when close — never crosses into the body zone.
         hspd = sign(_dx) * min(_adx - stop_range, run_spd);
     }
+} else if (state == enemy_states.stunned) {
+    // Locked in place, but knockback (the mace ground wave's shove) must
+    // DECAY here rather than be re-stomped to 0 every frame — otherwise the
+    // shove is overwritten before physics ever moves the victim (same
+    // execution-order reason this block owns movement).
+    hspd *= 0.85;
+    if (abs(hspd) < 0.25) hspd = 0;
 } else {
     hspd = move * ((state == enemy_states.run) ? run_spd : walk_spd);
 }
