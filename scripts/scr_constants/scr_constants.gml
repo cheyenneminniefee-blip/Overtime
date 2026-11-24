@@ -69,3 +69,19 @@ enum WEAPON { NONE, GREATSWORD, SPEAR, MACE }
 #macro SPEAR_POISE 1.5             // 1.5x poise damage
 #macro SPEAR_MAX_TARGETS 2         // PRD 5.8: the spear pierces up to 2 targets per swing
 #macro HB_TARGETS_UNLIMITED -1     // hit cap sentinel (sword / greatsword hit everything in the arc)
+
+// --- MACE + GROUND STUN WAVE (PRD 5.8) ---
+// The mace is the slowest, heaviest heavy: an overhead strike plus a
+// damage-free ground shockwave. PRD 30 fps integers doubled for this 60 fps
+// repo. The wave fires on the mace animation's authored strike frame and
+// stuns (never damages) every non-boss enemy in its zone.
+#macro MACE_DAMAGE 60              // 60 (PRD 5.8): heaviest damage in the game
+#macro MACE_POISE 3.0              // 3x poise damage
+#macro MACE_STRIKE_FRAME 24        // authored mask onset of spr_player_attack_mace_hb
+                                   // (verified by pixel scan: masks exist only on frames 24-25 of 37)
+#macro MACE_STUN_DURATION 60       // wave stuns for 1.0 s @60fps (PRD 1.0 s)
+#macro MACE_STUN_IMMUNITY 180      // then 3.0 s @60fps of wave-immunity, so a full
+                                   // mace cycle can never stun-lock (PRD 3.0 s)
+#macro MACE_WAVE_RANGE 100         // stun reach forward from the strike point
+                                   // (past the melee 60 px and shield 80 px stop lines)
+#macro MACE_WAVE_HEIGHT 80         // grounded band above/below the strike point

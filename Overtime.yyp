@@ -47,6 +47,7 @@
     {"id":{"name":"obj_level_gen","path":"objects/obj_level_gen/obj_level_gen.yy",},},
     {"id":{"name":"obj_light","path":"objects/obj_light/obj_light.yy",},},
     {"id":{"name":"obj_lighting_system","path":"objects/obj_lighting_system/obj_lighting_system.yy",},},
+    {"id":{"name":"obj_mace_shockwave","path":"objects/obj_mace_shockwave/obj_mace_shockwave.yy",},},
     {"id":{"name":"obj_parallax_bg","path":"objects/obj_parallax_bg/obj_parallax_bg.yy",},},
     {"id":{"name":"obj_phase_slash_vfx","path":"objects/obj_phase_slash_vfx/obj_phase_slash_vfx.yy",},},
     {"id":{"name":"obj_player_death","path":"objects/obj_player_death/obj_player_death.yy",},},

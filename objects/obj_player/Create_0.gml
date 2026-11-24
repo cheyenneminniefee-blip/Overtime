@@ -41,6 +41,7 @@ phase_teleported = false;
 // nothing beyond the normal sword swing.
 heavy_weapon = WEAPON.GREATSWORD;
 heavy_hold_timer = -1;   // frames the attack button has been held; -1 = not held / committed
+heavy_shockwave_fired = false;   // mace: the ground wave fires once per swing (scr_player_heavy_attack)
 
 // State Machine Initialization
 enum player_states {

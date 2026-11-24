@@ -20,7 +20,7 @@ key_block_pressed = mouse_check_button_pressed(mb_right); // Checks the initial 
 //   1 = WEAPON.NONE (Hard Light Sword only, pre-armory behavior)
 //   2 = WEAPON.GREATSWORD
 //   3 = WEAPON.SPEAR
-// NOTE: when the mace logic lands, add 4 = WEAPON.MACE here.
+//   4 = WEAPON.MACE
 
 // Decrement your dodge cooldown over time
 if (dodge_cooldown > 0) {
@@ -54,10 +54,11 @@ if (key_attack) {
 }
 
 // Debug heavy weapon swap (see keybind notes above);
-// 1 = none, 2 = greatsword, 3 = spear // TODO: 4 = mace when the mace lands
+// 1 = none, 2 = greatsword, 3 = spear, 4 = mace
 if (keyboard_check_pressed(ord("1"))) heavy_weapon = WEAPON.NONE;
 else if (keyboard_check_pressed(ord("2"))) heavy_weapon = WEAPON.GREATSWORD;
 else if (keyboard_check_pressed(ord("3"))) heavy_weapon = WEAPON.SPEAR;
+else if (keyboard_check_pressed(ord("4"))) heavy_weapon = WEAPON.MACE;
 
 // Sprint availability (PRD 5.6): engaging needs 15 stamina (30 after emptying —
 // anti-flutter); an ongoing sprint sustains until stamina reaches 0.

@@ -41,6 +41,12 @@ damage_window_timer = 0;
 damage_taken_window = 0;
 blocks_frontal = false;       // Only the shield enemy overrides this
 
+// --- Mace ground wave hooks (PRD 5.8) ---
+is_boss = false;              // Bosses are immune to the mace's stun wave;
+                              // the (future) boss objects override this to true
+wave_stun_immunity = 0;       // Stun-immunity the mace ground wave banks — read
+                              // at wake-up in scr_enemy_stunned (anti stun-lock)
+
 
 // --- Squash And Stretch Variables ---
 draw_xscale = 1;

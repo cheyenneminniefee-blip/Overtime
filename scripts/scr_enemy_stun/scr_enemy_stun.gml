@@ -1,9 +1,12 @@
 /// scr_enemy_stun(_duration)
 // Knocks this enemy into the stunned state. Safe to call any time —
 // already-stunned or stun-immune enemies ignore it (prevents chain-locks).
+// Returns true if the stun applied, false if it was refused (the mace's
+// ground wave uses the result to decide whether the target banks its
+// 3 s stun immunity — refused targets must NOT gain immunity, PRD 5.8).
 function scr_enemy_stun(_duration) {
     if (state == enemy_states.stunned || stun_immunity_timer > 0) {
-        return;
+        return false;
     }
 
     stun_timer = _duration;
@@ -25,4 +28,5 @@ function scr_enemy_stun(_duration) {
     draw_yscale = 0.7;
 
     state = enemy_states.stunned;
+    return true;
 }
