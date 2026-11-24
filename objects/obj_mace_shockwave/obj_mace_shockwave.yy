@@ -30,7 +30,10 @@
   "resourceType":"GMObject",
   "resourceVersion":"2.0",
   "solid":false,
-  "spriteId":null,
+  "spriteId":{
+    "name":"spr_shockwave",
+    "path":"sprites/spr_shockwave/spr_shockwave.yy",
+  },
   "spriteMaskId":null,
   "visible":true,
 }
