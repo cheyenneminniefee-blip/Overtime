@@ -83,8 +83,17 @@ function scr_enemy_take_damage(_amount, _from_x, _bypass_shield, _poise_mult = 1
     damage_taken_window += _amount * _poise_mult;
 
     if (damage_taken_window >= poise_threshold) {
+        // PRD 6.4/7.2: a poise break reached during an enemy heavy attack is
+        // DEFERRED, not cancelled — poise damage still accrues while the
+        // heavy is uninterruptible, the flag is banked here, and the heavy's
+        // own end-of-attack code delivers the stagger the moment recovery
+        // ends. scr_enemy_stun would refuse mid-heavy anyway.
         damage_window_timer = 0;
         damage_taken_window = 0;
-        scr_enemy_stun(stun_duration);
+        if (heavy_attack_locked) {
+            poise_break_deferred = true;
+        } else {
+            scr_enemy_stun(stun_duration);
+        }
     }
 }

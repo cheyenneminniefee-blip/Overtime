@@ -23,8 +23,9 @@ if (state == enemy_states.walk) {
 
 image_speed = 1;
 
-// Attacking drops horizontal acceleration to 0
-if (state == enemy_states.attack) {
+// Attacking drops horizontal acceleration to 0 (the heavy is rooted too —
+// the whole commitment is stationary, PRD 6.4)
+if (state == enemy_states.attack || state == enemy_states.heavy_attack) {
     move = 0;
 }
 
@@ -144,6 +145,13 @@ switch (state) {
         legs_image_speed  = 0;
         break;
 
+    case enemy_states.heavy_attack:   // uninterruptible HEAVY (PRD 6.4/7.2)
+        sprite_index      = spr_heavy;
+        normal_map        = spr_heavy_nm;
+        leg_normal_map    = -1;
+        legs_image_speed  = 0;
+        break;
+
     case enemy_states.stunned:   // NEW — full-body pose, legs hidden
         sprite_index      = spr_stunned;
         normal_map        = spr_stunned_nm;
@@ -155,7 +163,8 @@ switch (state) {
 // --- SAFETY NET (NEW) ---
 // If a state change ever skips an attack script's cleanup (parry-stun,
 // damage interrupts), make sure no hitbox is left floating in the room.
-if (state != enemy_states.attack && attack_hitbox != noone && instance_exists(attack_hitbox)) {
+if (state != enemy_states.attack && state != enemy_states.heavy_attack
+&&  attack_hitbox != noone && instance_exists(attack_hitbox)) {
     instance_destroy(attack_hitbox);
     attack_hitbox = noone;
 }
@@ -166,5 +175,6 @@ switch (state) {
     case enemy_states.walk:    if (scr_walk != noone)   scr_walk();   break;
     case enemy_states.run:     if (scr_run != noone)    scr_run();    break;
     case enemy_states.attack:  if (scr_attack != noone) scr_attack(); break;
+    case enemy_states.heavy_attack: if (scr_heavy != noone) scr_heavy(); break;  // PRD 6.4/7.2
     case enemy_states.stunned: scr_enemy_stunned();                   break;  // NEW
 }

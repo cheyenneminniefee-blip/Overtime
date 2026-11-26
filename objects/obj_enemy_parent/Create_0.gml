@@ -6,7 +6,8 @@ enum enemy_states {
     walk,
     run,
     attack,
-    stunned          // NEW
+    stunned,         // NEW
+    heavy_attack     // uninterruptible HEAVY (PRD 6.4/7.2)
 }
 
 // --- Character Physics Variables ---
@@ -40,6 +41,15 @@ poise_window = 120;            // How long the damage "memory" lasts (frames)
 damage_window_timer = 0;
 damage_taken_window = 0;
 blocks_frontal = false;       // Only the shield enemy overrides this
+
+// --- Enemy Heavy Attack (PRD 6.4 / 7.2) ---
+heavy_attack_locked = false;   // true for the whole uninterruptible heavy commitment;
+                               // scr_enemy_stun refuses (no immunity) and poise
+                               // breaks defer to the end of recovery while set
+poise_break_deferred = false;  // poise broke mid-heavy -> stagger lands at recovery end
+blocked_hit_count = 0;         // anti-turtle: player's consecutive PLAIN blocks of this
+                               // enemy's attacks (parries never count, PRD 7.2)
+melee_range_timer = 0;         // anti-turtle: steps spent inside attack_range
 
 // --- Mace ground wave hooks (PRD 5.8) ---
 is_boss = false;              // Bosses are immune to the mace's stun wave;

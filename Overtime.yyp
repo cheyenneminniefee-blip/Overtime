@@ -86,6 +86,7 @@
     {"id":{"name":"scr_grenade_explode","path":"scripts/scr_grenade_explode/scr_grenade_explode.yy",},},
     {"id":{"name":"scr_level_generate","path":"scripts/scr_level_generate/scr_level_generate.yy",},},
     {"id":{"name":"scr_melee_enemy_attack","path":"scripts/scr_melee_enemy_attack/scr_melee_enemy_attack.yy",},},
+    {"id":{"name":"scr_melee_enemy_heavy_attack","path":"scripts/scr_melee_enemy_heavy_attack/scr_melee_enemy_heavy_attack.yy",},},
     {"id":{"name":"scr_melee_enemy_run","path":"scripts/scr_melee_enemy_run/scr_melee_enemy_run.yy",},},
     {"id":{"name":"scr_melee_enemy_walk","path":"scripts/scr_melee_enemy_walk/scr_melee_enemy_walk.yy",},},
     {"id":{"name":"scr_parallax_build","path":"scripts/scr_parallax_build/scr_parallax_build.yy",},},

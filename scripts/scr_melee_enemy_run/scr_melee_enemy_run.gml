@@ -24,9 +24,35 @@ function scr_melee_enemy_run() {
     var _ldx = target_player.x - x;
     if (_ldx != 0) facing_dir = sign(_ldx);
 
+    // --- ANTI-TURTLE BOOKKEEPING (PRD 7.2) ---
+    // Time spent in melee range feeds the heavy trigger; leaving the range
+    // clears it. Blocked-hit counting lives in obj_enemy_melee_hitbox (the
+    // player's block path), clean hits clear it (see that script).
+    if (_dist <= attack_range) {
+        melee_range_timer += 1;
+    } else {
+        melee_range_timer = 0;
+    }
+
     if (_dist <= attack_range && attack_cooldown <= 0) {   // swings from 60; retreat/idle line is stop_range (55)
-        state = enemy_states.attack;
+        // Heavy trigger (PRD 7.2): the player plain-blocked the last 2
+        // attacks, or has been in melee range for 3 s. Parries never feed
+        // either counter (a parry stuns + resets aggression instead).
+        var _go_heavy = (blocked_hit_count >= MELEE_HEAVY_BLOCKS_TO_HEAVY)
+                     || (melee_range_timer >= MELEE_HEAVY_RANGE_TIME);
+
+        // Trigger bookkeeping restarts with whatever attack we pick
+        blocked_hit_count = 0;
+        melee_range_timer = 0;
+
         image_index = 0;
         legs_image_index = 0;
+        if (_go_heavy) {
+            state = enemy_states.heavy_attack;
+            heavy_attack_locked = true;       // uninterruptible until recovery ends
+            poise_break_deferred = false;
+        } else {
+            state = enemy_states.attack;
+        }
     }
 }

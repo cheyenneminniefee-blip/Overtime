@@ -89,3 +89,19 @@ enum WEAPON { NONE, GREATSWORD, SPEAR, MACE }
 #macro MACE_WAVE_CONTACT 24        // half-width of the wave front's stun contact
 #macro MACE_WAVE_HEIGHT 80         // grounded band above/below the strike point
 #macro MACE_WAVE_KNOCKBACK 4       // shove written into victims' hspd on contact
+
+// --- ENEMY HEAVY ATTACKS (PRD 6.4 / 7.2) ---
+// The Standard Cyborg's heavy: type HEAVY — unblockable, full damage through
+// guard, must be dodged, and uninterruptible (poise breaks defer to the end
+// of recovery, stun and parry cannot touch it). The trigger is anti-turtle
+// bookkeeping: the player plain-blocked the last 2 attacks, or has been in
+// melee range for 3 s. PRD 30 fps integers doubled for this 60 fps repo.
+#macro MELEE_HEAVY_DAMAGE 25           // Standard Cyborg heavy (PRD 7.2)
+#macro MELEE_HEAVY_WINDUP 48           // 0.8 s @60fps strike lead-in (PRD 24 f @30fps);
+                                       // doubles as the >=0.4 s mandatory telegraph
+#macro MELEE_HEAVY_STRIKE_FRAME 14     // authored mask onset of spr_melee_enemy_heavy_attack_hb
+                                       // (pixel scan: masks only on frames 14-16 of 22)
+#macro MELEE_HEAVY_STRIKE_END 16
+#macro MELEE_HEAVY_COOLDOWN 90         // 1.5 s @60fps after the heavy (normal slash: 45)
+#macro MELEE_HEAVY_BLOCKS_TO_HEAVY 2   // player plain-blocked this many consecutive attacks
+#macro MELEE_HEAVY_RANGE_TIME 180      // or spent this many steps in melee range (3.0 s @60fps)

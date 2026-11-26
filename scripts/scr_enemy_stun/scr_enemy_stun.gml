@@ -5,6 +5,13 @@
 // ground wave uses the result to decide whether the target banks its
 // 3 s stun immunity — refused targets must NOT gain immunity, PRD 5.8).
 function scr_enemy_stun(_duration) {
+    // Uninterruptible (PRD 6.4/7.2): an enemy mid-heavy-attack cannot be
+    // stunned — poise breaks (deferred by scr_enemy_take_damage), parries,
+    // and the mace's ground wave all refuse while heavy_attack_locked holds,
+    // and a refusal never starts the stun-immunity timer.
+    if (heavy_attack_locked) {
+        return false;
+    }
     if (state == enemy_states.stunned || stun_immunity_timer > 0) {
         return false;
     }
