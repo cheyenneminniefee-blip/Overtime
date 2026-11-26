@@ -1,4 +1,4 @@
-// --- TRAVEL ---
+ // --- TRAVEL ---
 // Straight line away from the strike point, one band above the ground line.
 x += wave_dir * MACE_WAVE_SPEED;
 wave_travelled += MACE_WAVE_SPEED;
