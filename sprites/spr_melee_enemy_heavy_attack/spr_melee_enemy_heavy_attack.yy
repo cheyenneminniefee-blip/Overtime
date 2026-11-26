@@ -40,6 +40,7 @@
   "height":140,
   "HTile":false,
   "layers":[
+    {"$GMImageLayer":"","%Name":"68ba3719-885c-4889-82bd-eca0b7ce628e","blendMode":0,"displayName":"Layer 3","isLocked":false,"name":"68ba3719-885c-4889-82bd-eca0b7ce628e","opacity":100.0,"resourceType":"GMImageLayer","resourceVersion":"2.0","visible":true,},
     {"$GMImageLayer":"","%Name":"4acde4c0-4422-42b7-8d6c-1fd8d9041230","blendMode":0,"displayName":"sword","isLocked":false,"name":"4acde4c0-4422-42b7-8d6c-1fd8d9041230","opacity":100.0,"resourceType":"GMImageLayer","resourceVersion":"2.0","visible":true,},
     {"$GMImageLayer":"","%Name":"c9a9edef-cddb-47c5-b738-e587f306658f","blendMode":0,"displayName":"top arm","isLocked":false,"name":"c9a9edef-cddb-47c5-b738-e587f306658f","opacity":100.0,"resourceType":"GMImageLayer","resourceVersion":"2.0","visible":true,},
     {"$GMImageLayer":"","%Name":"e11d5e95-57a3-4586-b79a-6472138a45f3","blendMode":0,"displayName":"Layer 1","isLocked":false,"name":"e11d5e95-57a3-4586-b79a-6472138a45f3","opacity":100.0,"resourceType":"GMImageLayer","resourceVersion":"2.0","visible":true,},
@@ -48,6 +49,7 @@
     {"$GMImageLayer":"","%Name":"55a3bfa3-c6be-4a8c-8dd0-77f8c25635d2","blendMode":0,"displayName":"top leg","isLocked":false,"name":"55a3bfa3-c6be-4a8c-8dd0-77f8c25635d2","opacity":100.0,"resourceType":"GMImageLayer","resourceVersion":"2.0","visible":true,},
     {"$GMImageLayer":"","%Name":"1bca0fd8-7c14-412a-8be3-e64db0486312","blendMode":0,"displayName":"bottom leg","isLocked":false,"name":"1bca0fd8-7c14-412a-8be3-e64db0486312","opacity":100.0,"resourceType":"GMImageLayer","resourceVersion":"2.0","visible":true,},
     {"$GMImageLayer":"","%Name":"fecbe910-7d88-49c2-b060-8f6d706a8c42","blendMode":0,"displayName":"bottom arm","isLocked":false,"name":"fecbe910-7d88-49c2-b060-8f6d706a8c42","opacity":100.0,"resourceType":"GMImageLayer","resourceVersion":"2.0","visible":true,},
+    {"$GMImageLayer":"","%Name":"414d1136-2f18-468b-8927-d3b6ab521d68","blendMode":0,"displayName":"Layer 2","isLocked":false,"name":"414d1136-2f18-468b-8927-d3b6ab521d68","opacity":100.0,"resourceType":"GMImageLayer","resourceVersion":"2.0","visible":true,},
   ],
   "name":"spr_melee_enemy_heavy_attack",
   "nineSlice":null,
