@@ -35,10 +35,19 @@ function scr_melee_enemy_run() {
     }
 
     if (_dist <= attack_range && attack_cooldown <= 0) {   // swings from 60; retreat/idle line is stop_range (55)
-        // Heavy trigger (PRD 7.2): the player plain-blocked the last 2
-        // attacks, or has been in melee range for 3 s. Parries never feed
-        // either counter (a parry stuns + resets aggression instead).
-        var _go_heavy = (blocked_hit_count >= MELEE_HEAVY_BLOCKS_TO_HEAVY)
+        // --- HEAVY TRIGGERS (PRD 7.2 anti-turtle + escalation pattern) ---
+        // Any ONE of these causes the swing to escalate into the heavy:
+        //   1. every MELEE_HEAVY_EVERY_Nth attack thrown is a guaranteed
+        //      heavy, blocked or not (attack_count counts every attack we
+        //      initiate, then the cycle restarts after each heavy)
+        //   2. otherwise a random roll every attack
+        //   3. the player plain-blocked the last 2 attacks (parries never
+        //      count — a parry stuns + resets aggression instead)
+        //   4. 3 s of standing inside melee range
+        attack_count += 1;
+        var _go_heavy = (attack_count >= MELEE_HEAVY_EVERY_N)
+                     || (random(1) < MELEE_HEAVY_RANDOM_CHANCE)
+                     || (blocked_hit_count >= MELEE_HEAVY_BLOCKS_TO_HEAVY)
                      || (melee_range_timer >= MELEE_HEAVY_RANGE_TIME);
 
         // Trigger bookkeeping restarts with whatever attack we pick
@@ -48,6 +57,7 @@ function scr_melee_enemy_run() {
         image_index = 0;
         legs_image_index = 0;
         if (_go_heavy) {
+            attack_count = 0;                 // the guaranteed-Nth cycle restarts after every heavy
             state = enemy_states.heavy_attack;
             heavy_attack_locked = true;       // uninterruptible until recovery ends
             poise_break_deferred = false;

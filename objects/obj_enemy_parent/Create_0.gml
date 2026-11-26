@@ -50,6 +50,8 @@ poise_break_deferred = false;  // poise broke mid-heavy -> stagger lands at reco
 blocked_hit_count = 0;         // anti-turtle: player's consecutive PLAIN blocks of this
                                // enemy's attacks (parries never count, PRD 7.2)
 melee_range_timer = 0;         // anti-turtle: steps spent inside attack_range
+attack_count = 0;              // attacks thrown since the last heavy — the Nth is
+                               // a guaranteed heavy, blocked or not
 
 // --- Mace ground wave hooks (PRD 5.8) ---
 is_boss = false;              // Bosses are immune to the mace's stun wave;

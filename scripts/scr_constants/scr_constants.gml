@@ -105,3 +105,5 @@ enum WEAPON { NONE, GREATSWORD, SPEAR, MACE }
 #macro MELEE_HEAVY_COOLDOWN 90         // 1.5 s @60fps after the heavy (normal slash: 45)
 #macro MELEE_HEAVY_BLOCKS_TO_HEAVY 2   // player plain-blocked this many consecutive attacks
 #macro MELEE_HEAVY_RANGE_TIME 180      // or spent this many steps in melee range (3.0 s @60fps)
+#macro MELEE_HEAVY_EVERY_N 4           // guaranteed heavy on every Nth attack thrown (blocked or not)
+#macro MELEE_HEAVY_RANDOM_CHANCE 0.15  // 15% heavy chance on every attack outside the guaranteed Nth — tune to taste
